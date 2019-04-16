@@ -68,7 +68,7 @@ class Driver(VISA_Driver):
                     sAns = self.askAndLog("GETN? " + str(slot) + ",3")
                     self.wait(0.2)
 
-                return sAns[5:]
+                return sAns[5]
 
         elif name.endswith(('Status',)):
             value = self.getValue(name)
