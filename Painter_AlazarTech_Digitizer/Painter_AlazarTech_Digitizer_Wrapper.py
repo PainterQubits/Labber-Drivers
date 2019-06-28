@@ -252,12 +252,12 @@ class AlazarTechDigitizer():
 
     def AlazarPostAsyncBuffer(self, buffer, bufferLength):
         '''Posts a DMA buffer to a board.'''
-        self.callFunc('AlazarPostAsyncBuffer', self.handle, buffer, bufferLength)
+        self.callFunc('AlazarPostAsyncBuffer', self.handle, c_void_p(buffer), bufferLength)
 
 
     def AlazarWaitAsyncBufferComplete(self, buffer, timeout_ms):
         '''Blocks until the board confirms that buffer is filled with data.'''
-        self.callFunc('AlazarWaitAsyncBufferComplete', self.handle, buffer, timeout_ms)
+        self.callFunc('AlazarWaitAsyncBufferComplete', self.handle, c_void_p(buffer), timeout_ms)
 
 
     def readTracesDMA(self, bGetCh1, bGetCh2, nSamples, nRecord, nBuffer, nAverage=1,
@@ -380,7 +380,7 @@ class AlazarTechDigitizer():
             bytesTransferred = 0
             #initialize data array
             nPtsOut = samplesPerRecord * nRecord
-            nAvPerBuffer = recordsPerBuffer/nRecord
+            nAvPerBuffer = int(recordsPerBuffer // nRecord)
             vData = [np.zeros(nPtsOut, dtype=float), np.zeros(nPtsOut, dtype=float)]
             #range and zero for conversion to voltages
             codeZero = 2 ** (float(self.bitsPerSample) - 1) - 0.5
@@ -388,7 +388,7 @@ class AlazarTechDigitizer():
             # range and zero for each channel, combined with bit shifting
             range1 = self.dRange[1]/codeRange # /16.
             range2 = self.dRange[2]/codeRange #/16.
-            offset = 16.*0 + codeZero
+            offset = 16.*0+ codeZero
 
             timeout_ms = int(firstTimeout*1000)
 
