@@ -1086,6 +1086,8 @@ class SequenceToWaveforms:
             else:
                 pulse.amplitude = config.get('Amplitude #%d, Z' % m)
 
+            # pulse-specific parameters
+            pulse.frequency = config.get('Frequency #%d, Z' % m)
         # two-qubit pulses
         for n, pulse in enumerate(self.pulses_2qb):
             # pulses are indexed from 1 in Labber

@@ -19,6 +19,17 @@ class Rabi(Sequence):
         # just add pi-pulses for the number of available qubits
         self.add_gate_to_all(Gate.Xp, align='right')
 
+class ZRabi(Sequence):
+    """
+    Detune - Excite - Tune back (or Modulate) - Measure
+    """
+    def generate_sequence(self, config):
+        """Generate sequence by adding gates/pulses to waveforms."""
+        # just add pi-pulses for the number of available qubits
+        self.add_gate_to_all(Gate.Xp, align='right')
+        self.add_gate_to_all(Gate.Zp, align='right')
+
+
 
 class CPMG(Sequence):
     """Sequence for multi-qubit Ramsey/Echo/CMPG experiments."""

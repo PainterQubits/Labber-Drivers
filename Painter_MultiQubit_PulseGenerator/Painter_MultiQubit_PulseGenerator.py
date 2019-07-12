@@ -7,7 +7,7 @@ import copy
 import numpy as np
 
 from BaseDriver import LabberDriver
-from sequence_builtin import CPMG, PulseTrain, Rabi, SpinLocking
+from sequence_builtin import CPMG, PulseTrain, Rabi, SpinLocking, ZRabi
 from sequence_rb import SingleQubit_RB, TwoQubit_RB
 from sequence import SequenceToWaveforms
 
@@ -18,6 +18,7 @@ SEQUENCES = {'Rabi': Rabi,
              '1-QB Randomized Benchmarking': SingleQubit_RB,
              '2-QB Randomized Benchmarking': TwoQubit_RB,
              'Spin-locking' : SpinLocking,
+             'Z Rabi': ZRabi,
              'Custom': type(None)}
 
 

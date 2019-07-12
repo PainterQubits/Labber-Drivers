@@ -290,6 +290,17 @@ class Pulse(object):
                                        np.pi / 2))
             y = data_i + 1j * data_q
 
+        if self.pulse_type in (PulseType.Z, ):
+            # Apply phase and SSB
+            phase = self.phase
+            # single-sideband mixing, get frequency
+            omega = 2 * np.pi * self.frequency
+            # apply SSBM transform
+            data_i = self.iq_ratio * (y.real * np.cos(omega * t - phase) +
+                                    - y.imag * np.cos(omega * t - phase +
+                                                        np.pi / 2))
+            y = data_i
+
         if self.pulse_type in (PulseType.READOUT, ):
             # Apply phase and SSB
             phase = self.phase
