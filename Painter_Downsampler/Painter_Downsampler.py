@@ -17,8 +17,19 @@ class Driver(InstrumentDriver.InstrumentWorker):
         if quant.name.startswith('Output Trace'):
             n = int(quant.name.split(' #')[1]) - 1
 
-            dt_in = 1 / self.getValue("Sample Rate - Input #" + str(n + 1))
-            dt_out = 1 / self.getValue("Sample Rate - Output #" + str(n + 1))
+            # initialize variables
+            dt_in = 0
+            dt_out = 0
+
+            if self.getValue("Uniform Input Sample Rate"):
+                dt_in = 1 / self.getValue("Sample Rate - Input")
+            else:
+                dt_in = 1 / self.getValue("Sample Rate - Input #" + str(n + 1))
+
+            if self.getValue("Uniform Output Sample Rate"):
+                dt_out = 1 / self.getValue("Sample Rate - Output")
+            else:
+                dt_out = 1 / self.getValue("Sample Rate - Output #" + str(n + 1))
 
             trace_in = self.getValue("Input Trace #" + str(n + 1))
             self.log("Trace In #" + str(n + 1) + " = " + str(trace_in['y']))
