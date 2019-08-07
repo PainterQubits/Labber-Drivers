@@ -3,6 +3,7 @@
 Created on Thu Jan 15 17:43:56 2015
 
 @author: je25649
+modified by Eunjong Kim 7/20/2019
 """
 
 from ctypes import CDLL,c_char,c_uint
@@ -49,7 +50,15 @@ class VaunixAttenuator():
         # create a device id
         self.DeviceID = DEVID()
         base_path = os.path.dirname(os.path.abspath(__file__))
-        dll_path = os.path.join(base_path, 'VNX_atten64.dll')
+
+        dll_path = ''
+        if sys.maxsize > 0x100000000:
+            # using 64-bit interface
+            dll_path = os.path.join(base_path, 'dll', 'VNX_atten64.dll')
+        else:
+            # using 32-bit interface
+            dll_path = os.path.join(base_path, 'dll', 'VNX_atten.dll')
+
         self.VxDLL = CDLL(dll_path)
 
 
