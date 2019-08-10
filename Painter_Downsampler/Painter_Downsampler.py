@@ -36,8 +36,7 @@ class Driver(InstrumentDriver.InstrumentWorker):
 
             # perform interpolation of the data if the vector has at least 2 entries
             if len(trace_in['y']) > 1:
-
-                t_in = np.arange(trace_in['t0'], len(trace_in['y']) * dt_in, dt_in)
+                t_in = np.array([trace_in['t0'] + m * dt_in for m in range(len(trace_in['y'])))
                 interp_func = interpolate.interp1d(t_in, trace_in['y'])
 
                 t_out = np.arange(t_in[0], t_in[-1], dt_out)
