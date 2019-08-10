@@ -11,9 +11,11 @@ class Driver(VISA_Driver):
         """Perform the Set Value instrument operation. This function should
         return the actual value set by the instrument"""
         name = str(quant.name)
-        if name == 'Firmware Version' or name.endswith('Active Voltage', 'Active Current'):
+        if name == 'Firmware Version':
             # read-only channels don't perform setValue
             pass
+        elif name.endswith(('Active Voltage', 'Active Current')):
+            return self.getValue(name)
         else:
             # else, call the generic VISA driver
             return VISA_Driver.performSetValue(self, quant, value, sweepRate,
