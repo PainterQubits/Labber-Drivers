@@ -138,7 +138,7 @@ class Driver(InstrumentDriver.InstrumentWorker):
 
                 # deconvolution
                 Y_out = Y_in / H(ω)
-                y_out = np.fft.irfft(Y_out, norm='ortho')
+                y_out = np.fft.irfft(Y_out, n=len(y_in), norm='ortho')
 
                 self.log("Trace Out #" + str(n + 1) + " = " + str(y_out))
                 value = quant.getTraceDict(y_out, t0=t_in[0], dt=dt)
