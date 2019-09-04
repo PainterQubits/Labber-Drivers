@@ -7,7 +7,7 @@ modified by Eunjong Kim 7/20/2019
 """
 
 from ctypes import CDLL,c_char,c_uint
-import os
+import os, sys
 
 class Error(Exception):
     pass
