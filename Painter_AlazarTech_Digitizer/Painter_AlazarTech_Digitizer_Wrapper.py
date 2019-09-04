@@ -41,10 +41,16 @@ class DMABuffer:
         if os.name == 'nt':
             MEM_COMMIT = 0x1000
             PAGE_READWRITE = 0x4
-            windll.kernel32.VirtualAlloc.argtypes = [c_void_p, c_long, c_long, c_long]
-            windll.kernel32.VirtualAlloc.restype = c_void_p
-            self.addr = windll.kernel32.VirtualAlloc(
+            kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+            kernel32.VirtualAlloc.argtypes = [c_void_p, c_long, c_long, c_long]
+            kernel32.VirtualAlloc.restype = c_void_p
+            self.addr = kernel32.VirtualAlloc(
                 0, c_long(size_bytes), MEM_COMMIT, PAGE_READWRITE)
+
+            # windll.kernel32.VirtualAlloc.argtypes = [c_void_p, c_long, c_long, c_long]
+            # windll.kernel32.VirtualAlloc.restype = c_void_p
+            # self.addr = windll.kernel32.VirtualAlloc(
+            #     0, c_long(size_bytes), MEM_COMMIT, PAGE_READWRITE)
         elif os.name == 'posix':
             libc.valloc.argtypes = [c_long]
             libc.valloc.restype = c_void_p
@@ -62,9 +68,13 @@ class DMABuffer:
     def __exit__(self):
         if os.name == 'nt':
             MEM_RELEASE = 0x8000
-            windll.kernel32.VirtualFree.argtypes = [c_void_p, c_long, c_long]
-            windll.kernel32.VirtualFree.restype = c_int
-            windll.kernel32.VirtualFree(c_void_p(self.addr), 0, MEM_RELEASE);
+            kernel32 = ctypes.WinDLL('kernel32', use_Last_error=True)
+            kernel32.VirtualFree.argtypes = [c_void_p, c_long, c_long]
+            kernel32.VirtualFree.restype = c_int
+            kernel32.VirtualFree(c_void_p(self.addr), 0, MEM_RELEASE);
+            # windll.kernel32.VirtualFree.argtypes = [c_void_p, c_long, c_long]
+            # windll.kernel32.VirtualFree.restype = c_int
+            # windll.kernel32.VirtualFree(c_void_p(self.addr), 0, MEM_RELEASE);
         elif os.name == 'posix':
             libc.free(self.addr)
         else:
@@ -104,7 +114,7 @@ class AlazarTechDigitizer():
         handle = func(U32(systemId), U32(boardId))
         if handle is None:
             raise Error('Device with system ID=%d and board ID=%d could not be found.' % (systemId, boardId))
-        self.handle = handle
+        self.handle = c_void_p(handle)
         # get mem and bitsize
         (self.memorySize_samples, self.bitsPerSample) = self.AlazarGetChannelInfo()
 
@@ -325,8 +335,8 @@ class AlazarTechDigitizer():
         # TODO: Select number of DMA buffers to allocate
         MEM_SIZE = int(bufferSize * 1024*1024)
         # force buffer count to be even number, seems faster for allocating
-        maxBufferCount = int(MEM_SIZE//(2*bytesPerBufferMem))
-        bufferCount = max(1, 2*maxBufferCount)
+        maxBufferCount = int(MEM_SIZE // (2 * bytesPerBufferMem))
+        bufferCount = max(1, 2 * maxBufferCount)
         # don't allocate more buffers than needed for all data
         bufferCount = min(bufferCount, buffersPerAcquisition, maxBuffers)
         lT.append('Total buffers needed: %d' % buffersPerAcquisition)
@@ -403,7 +413,7 @@ class AlazarTechDigitizer():
                 # lT.append('Wait: %.1f ms' % ((time.clock()-t0)*1000))
 
                 # reset timeout time, can be different than first call
-                timeout_ms = int(timeout*1000)
+                timeout_ms = int(timeout * 1000)
 
                 buffersCompleted += 1
                 bytesTransferred += buf.size_bytes
@@ -419,7 +429,7 @@ class AlazarTechDigitizer():
                 if bytesPerBuffer == bytesPerBufferMem:
                     buf_truncated = buf.buffer
                 else:
-                    buf_truncated = buf.buffer[:(bytesPerBuffer//bytesPerSample)]
+                    buf_truncated = buf.buffer[:(bytesPerBuffer // bytesPerSample)]
 
                 # reshape, sort and average data
                 if nAverage > 1:
@@ -460,7 +470,7 @@ class AlazarTechDigitizer():
                 self.AlazarAbortAsyncRead()
             except:
                 pass
-            lT.append('Abort: %.1f ms' % ((time.clock()-t0)*1000))
+            lT.append('Abort: %.1f ms' % ((time.clock() - t0) * 1000))
         # normalize
         # log.info('Average: %.1f ms' % np.mean(lAvTime))
         vData[0] /= buffersPerAcquisition
