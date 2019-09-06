@@ -169,20 +169,22 @@ class Readout(object):
         if dt == 0:
             dt = 1.0
         # get indices for data trimming
-        n0 = int(round(self.demod_skip / dt))
+        n0 = int(round(self.demod_skip / dt))  # skip length
         n_total = vI.size
-        length = 1 + int(round(self.demod_length / dt))
+        length = 1 + int(round(self.demod_length / dt))  # demodulation length
         length = min(length, int(n_total / n_segment) - n0)
         if length <= 1:
             return np.zeros(n_segment, dtype=complex)
 
-        # define data to use, put in 2d array of segments
+        # define data to use, put in 2d array of segments. The data contains
+        # `self.n_records` rows of single-shot traces
         vData = np.reshape(vI + 1j * vQ, (n_segment, int(n_total / n_segment)))
+
         # calculate cos/sin vectors, allow segmenting
         vTime = dt * (n0 + np.arange(length, dtype=float))
         vS = np.exp(- 2j * np.pi * vTime * frequency) # minus sign added for our convention of IQ demodulation
 
-        # calc I/Q
+        # calc I/Q by integration
         dI = np.trapz((vS * vData[:, n0:n0 + length]).real) / float(length - 1)
         dQ = -np.trapz((vS * vData[:, n0:n0 + length]).imag) / float(length - 1)
         values = dI + 1j * dQ
