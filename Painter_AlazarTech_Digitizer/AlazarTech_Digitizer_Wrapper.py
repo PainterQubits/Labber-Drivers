@@ -129,7 +129,7 @@ class AlazarTechDigitizer():
             bIgnoreError = kargs['bIgnoreError']
         else:
             bIgnoreError = False
-        if status>512 and not bIgnoreError:
+        if status > 512 and not bIgnoreError:
             sError = self.getError(status)
             raise Error(sError)
 
@@ -194,7 +194,7 @@ class AlazarTechDigitizer():
 
     #RETURN_CODE  AlazarSetTriggerTimeOut( HANDLE h, U32 to_ns);
     def AlazarSetTriggerTimeOut(self, time=0.0):
-        tick = U32(int(time*1E5))
+        tick = U32(int(time * 1E5))
         self.callFunc('AlazarSetTriggerTimeOut', self.handle, tick)
 
 
@@ -243,8 +243,8 @@ class AlazarTechDigitizer():
     def AlazarBeforeAsyncRead(self, channels, transferOffset, samplesPerRecord,
                         recordsPerBuffer, recordsPerAcquisition, flags):
         '''Prepares the board for an asynchronous acquisition.'''
-        self.callFunc('AlazarBeforeAsyncRead', self.handle, channels, transferOffset, samplesPerRecord,
-                                  recordsPerBuffer, recordsPerAcquisition, flags)
+        self.callFunc('AlazarBeforeAsyncRead', self.handle, channels, transferOffset,
+                      samplesPerRecord, recordsPerBuffer, recordsPerAcquisition, flags)
 
 
      #RETURN_CODE AlazarAbortAsyncRead( HANDLE h);
@@ -402,9 +402,9 @@ class AlazarTechDigitizer():
             codeZero = 2 ** (float(self.bitsPerSample) - 1) - 0.5
             codeRange = 2 ** (float(self.bitsPerSample) - 1) - 0.5
             # range and zero for each channel, combined with bit shifting
-            range1 = self.dRange[1] / codeRange / 16.
-            range2 = self.dRange[2] / codeRange / 16.
-            offset = 16. * codeZero
+            range1 = self.dRange[1] / codeRange #/ 16.
+            range2 = self.dRange[2] / codeRange #/ 16.
+            offset = codeZero #16. * codeZero #  #
 
             timeout_ms = int(firstTimeout * 1000)
 
@@ -444,24 +444,24 @@ class AlazarTechDigitizer():
                         # only channel 1 active:
                         rs = buf_truncated.reshape((nAvPerBuffer, nPtsOut))
                         vData[0] += range1 * (np.mean(rs, axis=0) - offset)
-                    elif channels == 2
+                    elif channels == 2:
                         # only channel 2 active:
                         rs = buf_truncated.reshape((nAvPerBuffer, nPtsOut))
                         vData[1] += range2 * (np.mean(rs, axis=0) - offset)
                     elif channels == 3:
                         # both channels 1 & 2 active:
-                        rs = buf_truncated.reshape((nAvPerBuffer, nPtsOut, 2))
-                        vData[0] += range1 * (np.mean(rs[:, :, 0], axis=0) - offset)
-                        vData[1] += range2 * (np.mean(rs[:, :, 1], axis=0) - offset)
+                        rs = buf_truncated.reshape((2, nAvPerBuffer, nPtsOut))
+                        vData[0] += range1 * (np.mean(rs[0, :, :], axis=0) - offset)
+                        vData[1] += range2 * (np.mean(rs[1, :, :], axis=0) - offset)
                 else:
                     if channels == 1:
                         vData[0] = range1 * (buf_truncated - offset)
                     elif channels == 2:
                         vData[1] = range2 * (buf_truncated - offset)
                     elif channels == 3:
-                        rs = buf_truncated.reshape((nPtsOut, 2))
-                        vData[0] = range1 * (rs[:, 0] - offset)
-                        vData[1] = range2 * (rs[:, 1] - offset)
+                        rs = buf_truncated.reshape((2, nPtsOut))
+                        vData[0] = range1 * (rs[0, :] - offset)
+                        vData[1] = range2 * (rs[1, :] - offset)
 
                 # lT.append('Sort/Avg: %.1f ms' % ((time.clock()-t0)*1000))
                 # log.info(str(lT))

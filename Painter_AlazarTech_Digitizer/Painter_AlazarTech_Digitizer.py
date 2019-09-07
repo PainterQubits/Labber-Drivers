@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import Painter_AlazarTech_Digitizer_Wrapper as AlazarDig
+import AlazarTech_Digitizer_Wrapper as AlazarDig
 import InstrumentDriver
 import numpy as np
 
@@ -23,7 +23,7 @@ class Driver(InstrumentDriver.InstrumentWorker):
         boardId = int(self.comCfg.address)
         timeout = self.dComCfg['Timeout']
         self.dig = AlazarDig.AlazarTechDigitizer(systemId=1, boardId=boardId,
-                   timeout=timeout)
+                                                 timeout=timeout)
         self.dig.testLED()
 
 
@@ -61,8 +61,7 @@ class Driver(InstrumentDriver.InstrumentWorker):
                 # clear trace buffer
                 self.lTrace = [np.array([]), np.array([])]
                 # read traced to buffer, proceed depending on model
-                #####AS-03/24/18, code is forcing us to nonDMA transfer. modified to try DMA
-                if self.getModel() in ('9871'):#removed our model from the list to see if we can transfer with DMA, previously: in ('9870',)
+                if self.getModel() in ('',): # currently all models are reading traces with DMA
                     self.getTracesNonDMA()
                 else:
                     self.getTracesDMA(hardware_trig=self.isHardwareTrig(options))
@@ -78,7 +77,11 @@ class Driver(InstrumentDriver.InstrumentWorker):
     def performArm(self, quant_names, options={}):
         """Perform the instrument arm operation"""
         # arming is only implemented for DMA reaoud
-        if self.getModel() in ('9871',): #removed our model from the list to see if we can transfer with DMA, previously: in ('9870',)
+        if self.getModel() in ('',): # currently all models are reading traces with DMA
+            return
+        # make sure we are arming for reading traces, if not return
+        signals = [name in self.lSignalNames for name in quant_names]
+        if not np.any(signals):
             return
         # get config
         bGetCh1 = bool(self.getValue('Ch1 - Enabled'))
@@ -110,7 +113,7 @@ class Driver(InstrumentDriver.InstrumentWorker):
 
     def _callbackProgress(self, progress):
         """Report progress to server, as text string"""
-        s = 'Acquiring traces (%.0f%%)' % (100*progress)
+        s = 'Acquiring traces (%.0f%%)' % (100 * progress)
         self.reportStatus(s)
 
 
@@ -134,7 +137,7 @@ class Driver(InstrumentDriver.InstrumentWorker):
                            bConfig=False, bArm=False, bMeasure=True,
                            funcStop=self.isStopped,
                            funcProgress=self._callbackProgress,
-                           firstTimeout=self.dComCfg['Timeout']+180.0,
+                           firstTimeout=self.dComCfg['Timeout'] + 180.0,
                            bufferSize=nMemSize,
                            maxBuffers=nMaxBuffer)
             # re-shape data and place in trace buffer
@@ -143,7 +146,7 @@ class Driver(InstrumentDriver.InstrumentWorker):
         # after getting data, pick values to return
         indx = self.lSignalNames.index(quant.name)
         value = quant.getTraceDict(self.lTrace[indx][seq_no],
-                                                dt=self.dt)
+                                   dt=self.dt)
         return value
 
 
@@ -171,10 +174,10 @@ class Driver(InstrumentDriver.InstrumentWorker):
             SampleRateId = int(1E9)
             lFreq = [1E3, 2E3, 5E3, 10E3, 20E3, 50E3, 100E3, 200E3, 500E3,
                      1E6, 2E6, 5E6, 10E6, 20E6, 50E6, 100E6, 250E6, 500E6, 1E9]
-            Decimation = int(round(1E9/lFreq[self.getValueIndex('Sample rate')]))
+            Decimation = int(round(1E9 / lFreq[self.getValueIndex('Sample rate')]))
         self.dig.AlazarSetCaptureClock(SourceId, SampleRateId, 0, Decimation)
         # define time step from sample rate
-        self.dt = 1/lFreq[self.getValueIndex('Sample rate')]
+        self.dt = 1 / lFreq[self.getValueIndex('Sample rate')]
         #
         # configure inputs
         for n in range(2):
@@ -186,15 +189,15 @@ class Driver(InstrumentDriver.InstrumentWorker):
                     InputRange = 7
                     Impedance = 2
                 else:
-                    Coupling = int(self.getCmdStringFromValue('Ch%d - Coupling' % (n+1)))
-                    InputRange = int(self.getCmdStringFromValue('Ch%d - Range' % (n+1)))
-                    Impedance = int(self.getCmdStringFromValue('Ch%d - Impedance' % (n+1)))
+                    Coupling = int(self.getCmdStringFromValue('Ch%d - Coupling' % (n + 1)))
+                    InputRange = int(self.getCmdStringFromValue('Ch%d - Range' % (n + 1)))
+                    Impedance = int(self.getCmdStringFromValue('Ch%d - Impedance' % (n + 1)))
                 #set coupling, input range, impedance
-                self.dig.AlazarInputControl(n+1, Coupling, InputRange, Impedance)
-                # bandwidth limit, only for model 9870
-                if self.getModel() in ('9871',): #removed our model from the list to see if we can transfer with DMA, previously: in ('9870',)
-                    BW = int(self.getValue('Ch%d - Bandwidth limit' % (n+1)))
-                    self.dig.AlazarSetBWLimit(n+1, BW)
+                self.dig.AlazarInputControl(n + 1, Coupling, InputRange, Impedance)
+                # bandwidth limit, currently no model with this option supported
+                if self.getModel() in ('',):
+                    BW = int(self.getValue('Ch%d - Bandwidth limit' % (n + 1)))
+                    self.dig.AlazarSetBWLimit(n + 1, BW)
         #
         # configure trigger
         Source = int(self.getCmdStringFromValue('Trig source'))
@@ -211,18 +214,18 @@ class Driver(InstrumentDriver.InstrumentWorker):
         elif self.getValue('Trig source') == 'External':
             if self.getModel() in ('9373', '9360'):
                 maxLevel = 2.5
-                ExtTrigRange = 3
+                ExtTrigRange = 3  # 2V5-50OHM range
             else:
                 maxLevel = 5.0
-                ExtTrigRange = 0
+                ExtTrigRange = 0  # 5V-50OHM range
         elif self.getValue('Trig source') == 'Immediate':
             maxLevel = 5.0
             # set timeout to very short with immediate triggering
             timeout = 0.001
         # convert relative level to U8
-        if abs(trigLevel)>maxLevel:
-            trigLevel = maxLevel*np.sign(trigLevel)
-        Level = int(128 + 127*trigLevel/maxLevel)
+        if abs(trigLevel) > maxLevel:
+            trigLevel = maxLevel * np.sign(trigLevel)
+        Level = int(128 + 127 * trigLevel / maxLevel)
         # set config
         self.dig.AlazarSetTriggerOperation(0, 0, Source, Slope, Level)
         #
@@ -232,11 +235,11 @@ class Driver(InstrumentDriver.InstrumentWorker):
             self.dig.AlazarSetExternalTrigger(Coupling, ExtTrigRange)
         #
         # set trig delay and timeout
-        Delay = int(self.getValue('Trig delay')/self.dt)
+        Delay = int(self.getValue('Trig delay') / self.dt)
         self.dig.AlazarSetTriggerDelay(Delay)
         self.dig.AlazarSetTriggerTimeOut(time=timeout)
         # config memeory buffers, only possible for cards using DMA read
-        if self.getModel() not in ('9360', '9373', '9870'): #added our model from the list to see if we can transfer with DMA, previously: in ('9360', '9373')
+        if self.getModel() not in ('9360', '9373', '9870'):
             return
         bGetCh1 = bool(self.getValue('Ch1 - Enabled'))
         bGetCh2 = bool(self.getValue('Ch2 - Enabled'))
@@ -268,36 +271,12 @@ class Driver(InstrumentDriver.InstrumentWorker):
         # in hardware trig mode, there is no noed to re-arm the card
         bArm = not hardware_trig
         # get data
-        ### orginal:
-        # self.lTrace[0], self.lTrace[1] = self.dig.readTracesDMA(bGetCh1, bGetCh2,
-        #                                  nPostSize, nRecord, nBuffer, nAverage,
-        #                                  bConfig=False, bArm=bArm, bMeasure=True,
-        #                                  funcStop=self.isStopped,
-        #                                  bufferSize=nMemSize,
-        #                                  maxBuffers=nMaxBuffer)
-        # if self.getModel() not in ('9360', '9373'):
-            # channelA_temp, channelB_temp = self.dig.readTracesDMA(bGetCh1, bGetCh2,
-            #                                  nPostSize, nRecord, nBuffer, nAverage,
-            #                                  bConfig=False, bArm=bArm, bMeasure=True,
-            #                                  funcStop=self.isStopped,
-            #                                  bufferSize=nMemSize,
-            #                                  maxBuffers=nMaxBuffer)]
-            # # interleaves data caused from  NPT AutoDMA
-            # def interleaveConcatenated(data):
-            #
-            #     return interleaved
-            #
-            # self.lTrace[0] = interleaveConcatenated(channelA_temp)
-            # self.lTrace[1] = interleaveConcatenated(channelB_temp)
-            # pass
-        # else:
         self.lTrace[0], self.lTrace[1] = self.dig.readTracesDMA(bGetCh1, bGetCh2,
                                          nPostSize, nRecord, nBuffer, nAverage,
                                          bConfig=False, bArm=bArm, bMeasure=True,
                                          funcStop=self.isStopped,
                                          bufferSize=nMemSize,
                                          maxBuffers=nMaxBuffer)
-
 
     def getTracesNonDMA(self):
         """Resample the data"""
@@ -313,11 +292,11 @@ class Driver(InstrumentDriver.InstrumentWorker):
             return
 
         self.dig.AlazarSetRecordSize(nPreSize, nPostSize)
-        self.dig.AlazarSetRecordCount(nRecord*nAverage)
+        self.dig.AlazarSetRecordCount(nRecord, nAverage)
         # start aquisition
         self.dig.AlazarStartCapture()
         nTry = self.dComCfg['Timeout']/0.05
-        while nTry>0 and self.dig.AlazarBusy() and not self.isStopped():
+        while nTry > 0 and self.dig.AlazarBusy() and not self.isStopped():
             # sleep for a while to save resources, then try again
             self.wait(0.050)
             nTry -= 1
@@ -329,7 +308,7 @@ class Driver(InstrumentDriver.InstrumentWorker):
         if self.isStopped():
             self.dig.AlazarAbortCapture()
             return
-        #
+
         # read data for channels in use
         if bGetCh1:
             self.lTrace[0] = self.dig.readTraces(1)
