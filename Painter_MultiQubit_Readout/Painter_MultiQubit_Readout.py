@@ -11,8 +11,8 @@ class Driver(InstrumentDriver.InstrumentWorker):
         # initialize variables
         self.n_record = 0
         self.n_qubit = 0
-        self.z0 = None
-        self.z1 = None
+        self.z_dec = None
+        self.n = None
         self.single_shot_results = None
         pass
 
@@ -29,16 +29,16 @@ class Driver(InstrumentDriver.InstrumentWorker):
         d = dict(Zero=0, One=1, Two=2, Three=3, Four=4, Five=5, Six=6, Seven=7,
                  Eight=8, Nine=9)
         self.n_qubit = d[config.get('Number of qubits')]
-        self.z0 = [config.get('Voltage, QB%d - State 0' % (n + 1)) for n in range(self.n_qubit)]
-        self.z1 = [config.get('Voltage, QB%d - State 1' % (n + 1)) for n in range(self.n_qubit)]
+        self.z_dec = [config.get('Voltage, QB%d - Decision Point' % (n + 1)) for n in range(self.n_qubit)]
+        self.n = [config.get('Voltage, QB%d - Direction' % (n + 1)) for n in range(self.n_qubit)]
 
         single_shot_voltages = \
-            [self.getValue('Single-shot Voltage, QB%d' % (n + 1)) for n in range(self.n_qubit)]
+            [self.getValue('Single-shot Voltage, QB%d' % (n + 1))['y'] for n in range(self.n_qubit)]
 
         self.n_record = len(single_shot_voltages[0])
 
         self.single_shot_results = \
-            [self._project_to_state(single_shot_voltages[n], self.z0[n], self.z1[n]) for n in range(self.n_qubit)]
+            [self._project_to_state(single_shot_voltages[n], self.z_dec[n], self.n[n]) for n in range(self.n_qubit)]
 
     def _find_point_closest(self, v, a, b):
         """
@@ -53,19 +53,6 @@ class Driver(InstrumentDriver.InstrumentWorker):
         yy = (A * (-B * x + A * y) - B * C) / (A ** 2 + B ** 2)
         return xx + 1j * yy
 
-    def _project_to_line(self, v, v0, v1):
-        # projection of complex data to a line v0 + t * v1 (0<t<1)
-        I0, Q0 = v0.real, v0.imag
-        I1, Q1 = v1.real, v1.imag
-
-        v_rel = v - v0
-        # Relative vector between state 0 and state 1
-        n = v1 - v0
-
-        # projection and normalization of data to a line connecting |0> and |1>
-        p = self._inner_product(v_rel, n) / np.abs(n) ** 2
-        return p
-
     def _inner_product(self, z1, z2):
         """
         Element-wise inner product between complex vectors or between a complex
@@ -73,19 +60,17 @@ class Driver(InstrumentDriver.InstrumentWorker):
         """
         return z1.real * z2.real + z1.imag * z2.imag
 
-    def _project_to_state(self, z, z0, z1):
+    def _project_to_state(self, z, z_dec, n):
         """
         Project the point `z = I + jQ` of qubit voltage to state {0, 1}
+        `z_dec` : a point in the decison boundary between ground state and excited state
+        `n` : complex vector normal to the decision boundary and is pointing
+            towards the excited state.
         """
-        # Relative vector between state 0 and state 1
-        n = z1 - z0
-
-        # midpoint between two states. this will be refined in future updates
-        z_det = (z0 + z1) / 2
 
         # boolean vector that returns `True` if z is on the side of z1,
-        # returns `False` if z is on the side of z0  w.r.t. z_det.
-        det = self._inner_product(n, (z - z_det))
+        # returns `False` if z is on the side of z0  w.r.t. z_dec.
+        det = self._inner_product(n, (z - z_dec))
 
         return (det > 0)
 
@@ -106,13 +91,13 @@ class Driver(InstrumentDriver.InstrumentWorker):
                 self.set_parameters(config)
 
             # get probability index
-            idx = quant.name.split(', P(')[1][:-1] - 1
+            P_idx = quant.name.split(', P(')[1][:(-1)]
 
             corr = np.ones(self.n_record, dtype=bool)
             for n in range(self.n_qubit):
                 # multiply `True` if the single shot result of qubit is the same
                 # as that of corresponding index
-                corr *= (bool(int(idx[n])) == self.single_shot_results[n])
+                corr *= (bool(int(P_idx[n])) == self.single_shot_results[n])
             value = np.mean(corr)
 
         return value
