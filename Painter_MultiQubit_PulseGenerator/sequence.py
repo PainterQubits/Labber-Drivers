@@ -895,8 +895,11 @@ class SequenceToWaveforms:
         # To keep the first pulse delay, use the smallest delay as reference.
         min_delay = np.min([self.wave_xy_delays[:self.n_qubit],
                             self.wave_z_delays[:self.n_qubit]])
-        self.wave_xy_delays -= min_delay
-        self.wave_z_delays -= min_delay
+
+        # commented this part out to allow for negative pulse delay
+        # self.wave_xy_delays -= min_delay
+        # self.wave_z_delays -= min_delay
+
         max_delay = np.max([self.wave_xy_delays[:self.n_qubit],
                             self.wave_z_delays[:self.n_qubit]])
 
