@@ -32,7 +32,7 @@ class Driver(InstrumentDriver.InstrumentWorker):
             trace_out[n_trunc:] = np.zeros(len(trace_in) - n_trunc)
             # perform interpolation of the data if the vector has at least 2 entries
 
-            t_in = np.array([trace_in['t0'] + m * dt for m in range(len(trace_in['y'])))
+            t_in = np.array([trace_in['t0'] + m * dt for m in range(len(trace_in['y']))])
             value = quant.getTraceDict(trace_out, t0=t_in[0], dt=dt)
 
         return value
