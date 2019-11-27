@@ -3,7 +3,7 @@
 from VISA_Driver import VISA_Driver
 import numpy as np
 
-__version__ = "0.0.1"
+__version__ = "1.0.1"
 
 class Error(Exception):
     pass
@@ -62,6 +62,7 @@ class Driver(VISA_Driver):
                         self.dMeasParam[param] = nParam
                 # set number of visible traces
                 self.writeAndLog(":CALC:PAR:COUN %d" % len(self.dMeasParam))
+
         elif quant.name in ('Wait for new trace',):
             # do nothing
             pass
@@ -121,16 +122,16 @@ class Driver(VISA_Driver):
                         # turn off averaging trigger
                         self.writeAndLog(':TRIG:AVER OFF')
 
-                    # Single Trigger
+                    # Trigger the intrument to perform measurement
                     self.writeAndLog(':TRIG:SING')
 
-                    # single sweep time
+                    # get single sweep time
                     tWait = float(self.askAndLog(':SENS:SWE:TIME?'))
 
                     if not bAverage:
                         # if not averaging, check whether the operation has completed after wait time
                         self.wait(tWait)
-                        self.writeAndLog('*OPC')
+                        self.askAndLog('*OPC?')
 
                     bDone = False
                     stb = 0
