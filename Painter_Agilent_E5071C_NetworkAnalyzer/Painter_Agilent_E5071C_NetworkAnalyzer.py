@@ -128,22 +128,21 @@ class Driver(VISA_Driver):
                     # get single sweep time
                     tWait = float(self.askAndLog(':SENS:SWE:TIME?'))
 
-                    if not bAverage:
-                        # if not averaging, check whether the operation has completed after wait time
-                        self.wait(tWait)
-                        self.askAndLog('*OPC?')
-
                     bDone = False
-                    stb = 0
-                    while (not bDone) and (not self.isStopped()):
-                        if bAverage:
-                            # if averaging, chck every single sweep time
-                            self.wait(tWait)
-                        stb = int(self.askAndLog('*ESR?'))
 
-                        bDone = (stb & 1) > 0
-                        if not bDone:
-                            self.wait(0.1)
+                    # index to keep track of number of runs
+                    m = 0
+                    # number of repetitions
+                    nAverage = self.getValue("# of averages")
+                    if not bAverage:
+                        nAverage = 1
+
+                    while (not bDone) and (not self.isStopped()):
+                        self.wait(tWait)
+                        m += 1
+
+                        if m == nAverage:
+                            bDone = int(self.askAndLog("*OPC?"))
                     # if stopped, don't get data
                     if self.isStopped():
                         self.writeAndLog('*CLS;:INIT:CONT ON;')
