@@ -3,7 +3,7 @@
 from VISA_Driver import VISA_Driver
 import numpy as np
 
-__version__ = "0.0.1"
+__version__ = "1.0.1"
 
 class Error(Exception):
     pass
@@ -23,7 +23,7 @@ class Driver(VISA_Driver):
     def performSetValue(self, quant, value, sweepRate=0.0, options={}):
         """Perform the Set Value instrument operation. This function should
         return the actual value set by the instrument"""
-#TODO: Lorentzian sweep 
+#TODO: Lorentzian sweep
 #        if self.isFinalCall(options) and self.getValue('Sweep type') == 'Lorentzian':
 #                 # get parameters
 #                centerFreq = self.getValue('Center frequency')
@@ -68,6 +68,7 @@ class Driver(VISA_Driver):
                         self.dMeasParam[param] = nParam
                 # set number of visible traces
                 self.writeAndLog(":CALC:PAR:COUN %d" % len(self.dMeasParam))
+
         elif quant.name in ('Wait for new trace',):
             # do nothing
             pass
@@ -82,8 +83,8 @@ class Driver(VISA_Driver):
 #            # if Lorentzian:
 #            elif self.getValue('Sweep type') == 'Lorentzian':
 #                # prepare VNA for segment sweep
-#                self.writeAndLog(':SENS:SWE:TYPE SEGM') 
-#                self.writeAndLog('DISP:WIND:TABL SEGM') 
+#                self.writeAndLog(':SENS:SWE:TYPE SEGM')
+#                self.writeAndLog('DISP:WIND:TABL SEGM')
         else:
             # run standard VISA case
             value = VISA_Driver.performSetValue(self, quant, value, sweepRate, options)
@@ -114,32 +115,40 @@ class Driver(VISA_Driver):
                 bAverage = self.getValue('Average')
                 # wait for trace, either in averaging or normal mode
                 if bWaitTrace:
-                    # Bus Trigger
+                    # Change the trigger mode to Bus Trigger
                     self.writeAndLog(':TRIG:SOUR BUS')
 
                     if bAverage:
                         # turn on averaging trigger
                         self.writeAndLog(':TRIG:AVER ON')
-                        
+
                         # restart averaging
                         self.writeAndLog(':SENS:AVER:CLE')
-                    
-                    # wait for sweep time
-                    tWait = float(self.askAndLog('SENS:SWE:TIME?'))
-                    if bAverage:
-                        nAverage = self.getValue("# of averages")
-                        tWait *= nAverage
-                    self.wait(tWait)
-                    self.writeAndLog('*OPC')
-  
+                    else:
+                        # turn off averaging trigger
+                        self.writeAndLog(':TRIG:AVER OFF')
+
+                    # Trigger the intrument to perform measurement
+                    self.writeAndLog(':TRIG:SING')
+
+                    # get single sweep time
+                    tWait = float(self.askAndLog(':SENS:SWE:TIME?'))
+
                     bDone = False
-                    stb = 0
+
+                    # index to keep track of number of runs
+                    m = 0
+                    # number of repetitions
+                    nAverage = self.getValue("# of averages")
+                    if not bAverage:
+                        nAverage = 1
+
                     while (not bDone) and (not self.isStopped()):
-                        # check if done
-                        stb = int(self.askAndLog('*ESR?'))
-                        bDone = (stb & 1) > 0
-                        if not bDone:
-                            self.wait(0.1)
+                        self.wait(tWait)
+                        m += 1
+
+                        if m == nAverage:
+                            bDone = int(self.askAndLog("*OPC?"))
                     # if stopped, don't get data
                     if self.isStopped():
                         self.writeAndLog('*CLS;:INIT:CONT ON;')
@@ -159,7 +168,7 @@ class Driver(VISA_Driver):
                 nData = int(nByte/4)
                 nPts = int(nData/2)
                 # get data to numpy array
-                vData = np.frombuffer(sData[(i0+2+nDig):(i0+2+nDig+nByte)], 
+                vData = np.frombuffer(sData[(i0+2+nDig):(i0+2+nDig+nByte)],
                                       dtype='>f', count=nData)
                 # data is in I0,Q0,I1,Q1,I2,Q2,.. format, convert to complex
                 mC = vData.reshape((nPts, 2))
@@ -213,7 +222,7 @@ class Driver(VISA_Driver):
 
     def calcLorentzianDistr(self, thetaMax, numPoints, qEst, centerFreq):
         """
-        Helper function to calculate Lorentzian frequency distribution 
+        Helper function to calculate Lorentzian frequency distribution
         """
         theta = np.linspace(-thetaMax, thetaMax, numPoints)
         freq = np.multiply(centerFreq,
