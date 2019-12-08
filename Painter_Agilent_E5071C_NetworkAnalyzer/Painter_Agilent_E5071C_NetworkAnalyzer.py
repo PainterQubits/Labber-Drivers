@@ -30,9 +30,15 @@ class Driver(VISA_Driver):
 #                qEst = self.getValue('Q Value')
 #                thetaMax = self.getValue('Maximum Angle')
 #                numPoints = self.getValue('# of points')
-#                # calculate distribution
-#                frequencies = self.calcLorentzianDistr(thetaMax, numPoints, qEst, centerFreq)
-#                data = []
+        
+#                if numPoints <= 2 * 201: # maximum number of segments allowed by the instrument
+                    # calculate distribution
+#                   frequencies = self.calcLorentzianDistr(thetaMax, numPoints, qEst, centerFreq)
+#                   data = []
+                    #
+                    
+#                    self.writeAndLog(':SENS:SEGM:DATA 5, 0, 0, 0, 0, 0, %d' % numPoints)
+                    
 #                for freq in frequencies:
 #                    data.append('1')
 #                    data.append('1')
