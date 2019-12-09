@@ -43,9 +43,10 @@ class Driver(VISA_Driver):
         """Perform the Get Value instrument operation"""
         # check type of quantity
         if quant.name in ('Spectrum'):
-
-            sData = self.askAndLog(":READ:SPEC?")
-
+            # initialize to single mode
+            self.writeAndLog(":INIT:CONT OFF")
+            self.writeAndLog(":READ:SPEC?", bCheckError=False)
+            sData = self.read(ignore_termination=True)
             # strip header to find # of points
             i0 = sData.find(b'#')
             # number of digits in <num_byte>
@@ -54,9 +55,13 @@ class Driver(VISA_Driver):
             nByte = int(sData[(i0 + 2):(i0 + 2 + nDig)])
             # number of data points (4-byte IEEE format)
             nData = int(nByte / 4)
+
+            self.log("(nDig, nByte, nData) = (%d, %d, %d)" % (nDig, nByte, nData))
+            # restart continous mode
+            self.writeAndLog(":INIT:CONT ON")
             # get data to numpy array
             vData = np.frombuffer(sData[(i0 + 2 + nDig):(i0 + 2 + nDig + nByte)],
-                                  dtype='>f', count=nData)
+                                  dtype='<f', count=nData)
             # get start/stop frequencies from instrument
             startFreq = self.readValueFromOther('Start frequency')
             stopFreq = self.readValueFromOther('Stop frequency')
