@@ -26,19 +26,19 @@ class Driver(VISA_Driver):
 
         if self.isFinalCall(options) and self.getValue('Sweep type') == 'Lorentzian':
                 # get parameters
-                centerFreq = self.getValue('Center frequency')
+                centerFreq = self.readValueFromOther('Center frequency')
                 qEst = self.getValue('Q Value')
                 thetaMax = self.getValue('Maximum Angle')
                 numPoints = self.getValue('# of points')
-        
+
                 if numPoints <= 2 * 201: # maximum number of segments allowed by the instrument
                     # calculate distribution
                     frequencies = self.calcLorentzianDistr(thetaMax, numPoints, qEst, centerFreq)
                     data = []
                 else:
                     raise ValueError("Lorentzian sweep can be performed for # of points <= 402")
-                    
-                if numPoints <= 201:                    
+
+                if numPoints <= 201:
                     ##
                     # Data =
                     # {<buf>,<stim>,<ifbw>,<pow>,<del>,<swp>,<time>,<segm>,
@@ -55,17 +55,22 @@ class Driver(VISA_Driver):
                         data.append('1')
 
                     dataset = ','.join(data)
-                    self.writeAndLog(':SENS:SEGM:DATA 5, 0, 0, 0, 0, 0, %s, %s' % (numPoints, dataset))
+
+                    # data format must be ascii when sending segment data
+                    self.writeAndLog(':FORM:DATA ASC')
+                    # change the x-axis display to frequency-base
+                    self.writeAndLog(':DISP:WIND:X:SPAC LIN')
+                    self.writeAndLog(':SENS:SEGM:DATA 5,0,0,0,0,0,%d,%s' % (numPoints, dataset))
                 else:
                     # if number of points is between 202 and 402
-                    
+
                     # number of segments with two points
                     nSeg2 = numPoints // 2
                     # number of segments with one point (either 0 or 1)
                     nSeg1 = numPoints % 2
-                    
+
                     nSegm = nSeg1 + nSeg2
-                    
+
                     for n in range(nSeg2):
                         # start frequency for each segment
                         data.append(str(frequencies[2 * n]))
@@ -73,13 +78,18 @@ class Driver(VISA_Driver):
                         data.append(str(frequencies[2 * n + 1]))
                         # # of points for each segment
                         data.append('2')
-                    
+
                     if nSeg1 == 1: # take care of the last point if # of points is odd
                         data.append(str(frequencies[-1]))
                         data.append(str(frequencies[-1]))
                         data.append('1')
                     dataset = ','.join(data)
-                    self.writeAndLog(':SENS:SEGM:DATA 5, 0, 0, 0, 0, 0, %s, %s' % (nSegm, dataset))                    
+
+                    # change the x-axis display to frequency-base
+                    self.writeAndLog(':DISP:WIND:X:SPAC LIN')
+                    # data format must be ascii when sending segment data
+                    self.writeAndLog(':FORM:DATA ASC')
+                    self.writeAndLog(':SENS:SEGM:DATA 5,0,0,0,0,0,%d,%s' % (nSegm, dataset))
         # update visa commands for triggers
         if quant.name in ('S11 - Enabled', 'S21 - Enabled', 'S12 - Enabled',
                           'S22 - Enabled'):
@@ -102,7 +112,7 @@ class Driver(VISA_Driver):
                 # set number of visible traces
                 self.writeAndLog(":CALC:PAR:COUN %d" % len(self.dMeasParam))
 
-        elif quant.name in ('Wait for new trace',):
+        elif quant.name in ('Acquire new trace',):
             # do nothing
             pass
         elif quant.name in ('Sweep type'):
@@ -116,7 +126,6 @@ class Driver(VISA_Driver):
             elif self.getValue('Sweep type') == 'Lorentzian':
                 # prepare VNA for segment sweep
                 self.writeAndLog(':SENS:SWE:TYPE SEGM')
-                self.writeAndLog('DISP:WIND:TABL SEGM')
         else:
             # run standard VISA case
             value = VISA_Driver.performSetValue(self, quant, value, sweepRate, options)
@@ -143,7 +152,7 @@ class Driver(VISA_Driver):
                     self.writeAndLog("CALC:PAR%d:SEL" % self.dMeasParam[quant.name])
 
                 # if not in continous mode, trig from computer
-                bWaitTrace = self.getValue('Wait for new trace')
+                bWaitTrace = self.getValue('Acquire new trace')
                 bAverage = self.getValue('Average')
                 # wait for trace, either in averaging or normal mode
                 if bWaitTrace:
@@ -215,7 +224,7 @@ class Driver(VISA_Driver):
                 stopFreq = centerFreq + (span/2)
                 value = quant.getTraceDict(vComplex, x0=startFreq, x1=stopFreq,
                                            logX=logX)
-                
+
                 # Lorentzian sweep
                 lorX = (sweepType == 'Lorentzian')
                 if lorX:
@@ -233,7 +242,7 @@ class Driver(VISA_Driver):
             else:
                 # not enabled, return empty array
                 value = quant.getTraceDict([])
-        elif quant.name in ('Wait for new trace',):
+        elif quant.name in ('Acquire new trace',):
             # do nothing, return local value
             value = quant.getValue()
         else:
@@ -258,9 +267,7 @@ class Driver(VISA_Driver):
         Helper function to calculate Lorentzian frequency distribution
         """
         theta = np.linspace(-thetaMax, thetaMax, numPoints)
-        freq = np.multiply(centerFreq,
-                           (1 - np.multiply(1 / (2 * qEst),
-                                            np.tan(np.divide(theta, 2)))))
+        freq = np.sort(centerFreq * (1 - 1 / (2 * qEst) * np.tan(theta / 2)))
         return freq
 
 
