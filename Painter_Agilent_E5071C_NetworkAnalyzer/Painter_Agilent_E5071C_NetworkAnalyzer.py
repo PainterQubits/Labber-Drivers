@@ -3,7 +3,7 @@
 from VISA_Driver import VISA_Driver
 import numpy as np
 
-__version__ = "1.0.1"
+__version__ = "1.1"
 
 class Error(Exception):
     pass
@@ -23,30 +23,63 @@ class Driver(VISA_Driver):
     def performSetValue(self, quant, value, sweepRate=0.0, options={}):
         """Perform the Set Value instrument operation. This function should
         return the actual value set by the instrument"""
-#TODO: Lorentzian sweep
-#        if self.isFinalCall(options) and self.getValue('Sweep type') == 'Lorentzian':
-#                 # get parameters
-#                centerFreq = self.getValue('Center frequency')
-#                qEst = self.getValue('Q Value')
-#                thetaMax = self.getValue('Maximum Angle')
-#                numPoints = self.getValue('# of points')
-        
-#                if numPoints <= 2 * 201: # maximum number of segments allowed by the instrument
-                    # calculate distribution
-#                   frequencies = self.calcLorentzianDistr(thetaMax, numPoints, qEst, centerFreq)
-#                   data = []
-                    #
-                    
-#                    self.writeAndLog(':SENS:SEGM:DATA 5, 0, 0, 0, 0, 0, %d' % numPoints)
-                    
-#                for freq in frequencies:
-#                    data.append('1')
-#                    data.append('1')
-#                    data.append(str(freq))
-#                    data.append(str(freq))
-#                dataset = ','.join(data)
-#                self.writeAndLog('SENS:SEGM:LIST SSTOP, %s, %s' % (numPoints, dataset))
 
+        if self.isFinalCall(options) and self.getValue('Sweep type') == 'Lorentzian':
+                # get parameters
+                centerFreq = self.getValue('Center frequency')
+                qEst = self.getValue('Q Value')
+                thetaMax = self.getValue('Maximum Angle')
+                numPoints = self.getValue('# of points')
+        
+                if numPoints <= 2 * 201: # maximum number of segments allowed by the instrument
+                    # calculate distribution
+                    frequencies = self.calcLorentzianDistr(thetaMax, numPoints, qEst, centerFreq)
+                    data = []
+                else:
+                    raise ValueError("Lorentzian sweep can be performed for # of points <= 402")
+                    
+                if numPoints <= 201:                    
+                    ##
+                    # Data =
+                    # {<buf>,<stim>,<ifbw>,<pow>,<del>,<swp>,<time>,<segm>,
+                    # <star 1>,<stop 1>,<nop 1>,<ifbw 1>,<pow 1>,<del 1>,<swp 1>,<time 1>,... ,
+                    # <star n>,<stop n>,<nop n>,<ifbw n>,<pow n>,<del n>,<swp n>,<time n>,.... ,
+                    # <star N>,<stop N>,<nop N>,<ifbw N>,<pow N>,<del N>,<swp N>,<time N>}
+                    ##
+                    for freq in frequencies:
+                        # start freq for each segment
+                        data.append(str(freq))
+                        # stop freq for each segment
+                        data.append(str(freq))
+                        # # of points for each segment
+                        data.append('1')
+
+                    dataset = ','.join(data)
+                    self.writeAndLog(':SENS:SEGM:DATA 5, 0, 0, 0, 0, 0, %s, %s' % (numPoints, dataset))
+                else:
+                    # if number of points is between 202 and 402
+                    
+                    # number of segments with two points
+                    nSeg2 = numPoints // 2
+                    # number of segments with one point (either 0 or 1)
+                    nSeg1 = numPoints % 2
+                    
+                    nSegm = nSeg1 + nSeg2
+                    
+                    for n in range(nSeg2):
+                        # start frequency for each segment
+                        data.append(str(frequencies[2 * n]))
+                        # stop frequency for each segment
+                        data.append(str(frequencies[2 * n + 1]))
+                        # # of points for each segment
+                        data.append('2')
+                    
+                    if nSeg1 == 1: # take care of the last point if # of points is odd
+                        data.append(str(frequencies[-1]))
+                        data.append(str(frequencies[-1]))
+                        data.append('1')
+                    dataset = ','.join(data)
+                    self.writeAndLog(':SENS:SEGM:DATA 5, 0, 0, 0, 0, 0, %s, %s' % (nSegm, dataset))                    
         # update visa commands for triggers
         if quant.name in ('S11 - Enabled', 'S21 - Enabled', 'S12 - Enabled',
                           'S22 - Enabled'):
@@ -79,12 +112,11 @@ class Driver(VISA_Driver):
             #if log:
             elif self.getValue('Sweep type') == 'Log':
                 self.writeAndLog(':SENS:SWE:TYPE LOG')
-# TODO
-#            # if Lorentzian:
-#            elif self.getValue('Sweep type') == 'Lorentzian':
-#                # prepare VNA for segment sweep
-#                self.writeAndLog(':SENS:SWE:TYPE SEGM')
-#                self.writeAndLog('DISP:WIND:TABL SEGM')
+            # if Lorentzian:
+            elif self.getValue('Sweep type') == 'Lorentzian':
+                # prepare VNA for segment sweep
+                self.writeAndLog(':SENS:SWE:TYPE SEGM')
+                self.writeAndLog('DISP:WIND:TABL SEGM')
         else:
             # run standard VISA case
             value = VISA_Driver.performSetValue(self, quant, value, sweepRate, options)
@@ -183,20 +215,21 @@ class Driver(VISA_Driver):
                 stopFreq = centerFreq + (span/2)
                 value = quant.getTraceDict(vComplex, x0=startFreq, x1=stopFreq,
                                            logX=logX)
-
-#                lorX = (sweepType == 'Lorentzian')
-#                if lorX:
-#                    qEst = self.getValue('Q Value')
-#                    thetaMax = self.getValue('Maximum Angle')
-#                    numPoints = self.getValue('# of points')
-#                    value = quant.getTraceDict(vComplex,
-#                                               x=self.calcLorentzianDistr(thetaMax, numPoints, qEst, centerFreq))
-#                else:
-#                    span = self.readValueFromOther('Span')
-#                    startFreq = centerFreq - (span/2)
-#                    stopFreq = centerFreq + (span/2)
-#                    value = quant.getTraceDict(vComplex, x0=startFreq, x1=stopFreq,
-#                                               logX=logX)
+                
+                # Lorentzian sweep
+                lorX = (sweepType == 'Lorentzian')
+                if lorX:
+                    qEst = self.getValue('Q Value')
+                    thetaMax = self.getValue('Maximum Angle')
+                    numPoints = self.getValue('# of points')
+                    value = quant.getTraceDict(vComplex,
+                                               x=self.calcLorentzianDistr(thetaMax, numPoints, qEst, centerFreq))
+                else:
+                    span = self.readValueFromOther('Span')
+                    startFreq = centerFreq - (span/2)
+                    stopFreq = centerFreq + (span/2)
+                    value = quant.getTraceDict(vComplex, x0=startFreq, x1=stopFreq,
+                                               logX=logX)
             else:
                 # not enabled, return empty array
                 value = quant.getTraceDict([])
