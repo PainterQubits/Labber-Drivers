@@ -3,7 +3,7 @@
 from VISA_Driver import VISA_Driver
 import numpy as np
 
-__version__ = "1.1"
+__version__ = "1.1.2"
 
 class Error(Exception):
     pass
@@ -26,9 +26,17 @@ class Driver(VISA_Driver):
 
         if self.isFinalCall(options) and self.getValue('Sweep type') == 'Lorentzian':
                 # get parameters
-                centerFreq = self.readValueFromOther('Center frequency')
-                qEst = self.getValue('Q Value')
-                thetaMax = self.getValue('Maximum Angle')
+                if self.getValue('Lorentzian - Parameter type') == 'Q - Maximum Angle':
+                    centerFreq = self.readValueFromOther('Center frequency')
+                    qEst = self.getValue('Q Value')
+                    thetaMax = self.getValue('Maximum Angle')
+                elif self.getValue('Lorentzian - Parameter type') == 'FWHM - # of FWHM in Span':
+                    span = self.readValueFromOther('Span')
+                    centerFreq = self.readValueFromOther('Center frequency')
+                    FWHM = self.getValue('FWHM linewidth')
+                    qEst = centerFreq / FWHM
+                    thetaMax = 2 * np.arctan(span / FWHM)
+
                 numPoints = self.getValue('# of points')
 
                 if numPoints <= 2 * 201: # maximum number of segments allowed by the instrument
@@ -228,8 +236,13 @@ class Driver(VISA_Driver):
                 # Lorentzian sweep
                 lorX = (sweepType == 'Lorentzian')
                 if lorX:
-                    qEst = self.getValue('Q Value')
-                    thetaMax = self.getValue('Maximum Angle')
+                    if self.getValue('Lorentzian - Parameter type') == 'Q - Maximum Angle':
+                        qEst = self.getValue('Q Value')
+                        thetaMax = self.getValue('Maximum Angle')
+                    elif self.getValue('Lorentzian - Parameter type') == 'FWHM - # of FWHM in Span':
+                        FWHM = self.getValue('FWHM linewidth')
+                        qEst = centerFreq / FWHM
+                        thetaMax = 2 * np.arctan(span / FWHM)
                     numPoints = self.getValue('# of points')
                     value = quant.getTraceDict(vComplex,
                                                x=self.calcLorentzianDistr(thetaMax, numPoints, qEst, centerFreq))
@@ -264,7 +277,12 @@ class Driver(VISA_Driver):
 
     def calcLorentzianDistr(self, thetaMax, numPoints, qEst, centerFreq):
         """
-        Helper function to calculate Lorentzian frequency distribution
+        Helper function to calculate Lorentzian frequency distribution.
+        Here, the cumulative distribution function (CDF)
+        F(f; f0, κ) = tan⁻¹[(x - x₀)/κ] / π + 1/2
+        or equivalently, inverse CDF of
+        Q(θ; f0, κ) = f0 + κ tan(θ)  [where -π/2 < θ < π/2]
+        is assumed. See https://en.wikipedia.org/wiki/Cauchy_distribution for info.
         """
         theta = np.linspace(-thetaMax, thetaMax, numPoints)
         freq = np.sort(centerFreq * (1 - 1 / (2 * qEst) * np.tan(theta / 2)))
