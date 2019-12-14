@@ -3,7 +3,7 @@
 from VISA_Driver import VISA_Driver
 import numpy as np
 
-__version__ = "1.1.2"
+__version__ = "1.1.3"
 
 class Error(Exception):
     pass
@@ -26,14 +26,15 @@ class Driver(VISA_Driver):
 
         if self.isFinalCall(options) and self.getValue('Sweep type') == 'Lorentzian':
                 # get parameters
-                if self.getValue('Lorentzian - Parameter type') == 'Q - Maximum Angle':
-                    centerFreq = self.readValueFromOther('Center frequency')
+                centerFreq = self.readValueFromOther('Center frequency')
+                qEst, thetaMax = 0, 0
+                if self.getValue('Lorentzian Parameter type') == 'Q - Maximum Angle':
                     qEst = self.getValue('Q Value')
                     thetaMax = self.getValue('Maximum Angle')
-                elif self.getValue('Lorentzian - Parameter type') == 'FWHM - # of FWHM in Span':
+                elif self.getValue('Lorentzian Parameter type') == 'FWHM':
                     span = self.readValueFromOther('Span')
-                    centerFreq = self.readValueFromOther('Center frequency')
                     FWHM = self.getValue('FWHM linewidth')
+
                     qEst = centerFreq / FWHM
                     thetaMax = 2 * np.arctan(span / FWHM)
 
@@ -236,11 +237,13 @@ class Driver(VISA_Driver):
                 # Lorentzian sweep
                 lorX = (sweepType == 'Lorentzian')
                 if lorX:
-                    if self.getValue('Lorentzian - Parameter type') == 'Q - Maximum Angle':
+                    qEst, thetaMax = 0, 0
+                    if self.getValue('Lorentzian Parameter type') == 'Q - Maximum Angle':
                         qEst = self.getValue('Q Value')
                         thetaMax = self.getValue('Maximum Angle')
-                    elif self.getValue('Lorentzian - Parameter type') == 'FWHM - # of FWHM in Span':
+                    elif self.getValue('Lorentzian Parameter type') == 'FWHM':
                         FWHM = self.getValue('FWHM linewidth')
+
                         qEst = centerFreq / FWHM
                         thetaMax = 2 * np.arctan(span / FWHM)
                     numPoints = self.getValue('# of points')
