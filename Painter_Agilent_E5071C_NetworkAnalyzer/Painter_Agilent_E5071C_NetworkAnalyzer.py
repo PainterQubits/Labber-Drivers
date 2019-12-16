@@ -3,7 +3,7 @@
 from VISA_Driver import VISA_Driver
 import numpy as np
 
-__version__ = "1.1.3"
+__version__ = "1.2.0"
 
 class Error(Exception):
     pass
@@ -25,80 +25,7 @@ class Driver(VISA_Driver):
         return the actual value set by the instrument"""
 
         if self.isFinalCall(options) and self.getValue('Sweep type') == 'Lorentzian':
-                # get parameters
-                centerFreq = self.readValueFromOther('Center frequency')
-                qEst, thetaMax = 0, 0
-                if self.getValue('Lorentzian Parameter type') == 'Q - Maximum Angle':
-                    qEst = self.getValue('Q Value')
-                    thetaMax = self.getValue('Maximum Angle')
-                elif self.getValue('Lorentzian Parameter type') == 'FWHM':
-                    span = self.readValueFromOther('Span')
-                    FWHM = self.getValue('FWHM linewidth')
-
-                    qEst = centerFreq / FWHM
-                    thetaMax = 2 * np.arctan(span / FWHM)
-
-                numPoints = self.getValue('# of points')
-
-                if numPoints <= 2 * 201: # maximum number of segments allowed by the instrument
-                    # calculate distribution
-                    frequencies = self.calcLorentzianDistr(thetaMax, numPoints, qEst, centerFreq)
-                    data = []
-                else:
-                    raise ValueError("Lorentzian sweep can be performed for # of points <= 402")
-
-                if numPoints <= 201:
-                    ##
-                    # Data =
-                    # {<buf>,<stim>,<ifbw>,<pow>,<del>,<swp>,<time>,<segm>,
-                    # <star 1>,<stop 1>,<nop 1>,<ifbw 1>,<pow 1>,<del 1>,<swp 1>,<time 1>,... ,
-                    # <star n>,<stop n>,<nop n>,<ifbw n>,<pow n>,<del n>,<swp n>,<time n>,.... ,
-                    # <star N>,<stop N>,<nop N>,<ifbw N>,<pow N>,<del N>,<swp N>,<time N>}
-                    ##
-                    for freq in frequencies:
-                        # start freq for each segment
-                        data.append(str(freq))
-                        # stop freq for each segment
-                        data.append(str(freq))
-                        # # of points for each segment
-                        data.append('1')
-
-                    dataset = ','.join(data)
-
-                    # data format must be ascii when sending segment data
-                    self.writeAndLog(':FORM:DATA ASC')
-                    # change the x-axis display to frequency-base
-                    self.writeAndLog(':DISP:WIND:X:SPAC LIN')
-                    self.writeAndLog(':SENS:SEGM:DATA 5,0,0,0,0,0,%d,%s' % (numPoints, dataset))
-                else:
-                    # if number of points is between 202 and 402
-
-                    # number of segments with two points
-                    nSeg2 = numPoints // 2
-                    # number of segments with one point (either 0 or 1)
-                    nSeg1 = numPoints % 2
-
-                    nSegm = nSeg1 + nSeg2
-
-                    for n in range(nSeg2):
-                        # start frequency for each segment
-                        data.append(str(frequencies[2 * n]))
-                        # stop frequency for each segment
-                        data.append(str(frequencies[2 * n + 1]))
-                        # # of points for each segment
-                        data.append('2')
-
-                    if nSeg1 == 1: # take care of the last point if # of points is odd
-                        data.append(str(frequencies[-1]))
-                        data.append(str(frequencies[-1]))
-                        data.append('1')
-                    dataset = ','.join(data)
-
-                    # change the x-axis display to frequency-base
-                    self.writeAndLog(':DISP:WIND:X:SPAC LIN')
-                    # data format must be ascii when sending segment data
-                    self.writeAndLog(':FORM:DATA ASC')
-                    self.writeAndLog(':SENS:SEGM:DATA 5,0,0,0,0,0,%d,%s' % (nSegm, dataset))
+            self.setLorentzianSweep()
         # update visa commands for triggers
         if quant.name in ('S11 - Enabled', 'S21 - Enabled', 'S12 - Enabled',
                           'S22 - Enabled'):
@@ -135,6 +62,7 @@ class Driver(VISA_Driver):
             elif self.getValue('Sweep type') == 'Lorentzian':
                 # prepare VNA for segment sweep
                 self.writeAndLog(':SENS:SWE:TYPE SEGM')
+
         else:
             # run standard VISA case
             value = VISA_Driver.performSetValue(self, quant, value, sweepRate, options)
@@ -151,6 +79,11 @@ class Driver(VISA_Driver):
             param = quant.name[:3]
             value = (param in self.dMeasParam)
         elif quant.name in ('S11', 'S21', 'S12', 'S22'):
+            if self.getValue('Sweep type') == 'Lorentzian':
+                # for Lorentzian sweep, make sure segment table for Lorentzian 
+                # sweep is setup with updated values before starting measurement
+                self.setLorentzianSweep()
+            
             # check if channel is on
             if quant.name not in self.dMeasParam:
                 # get active measurements again, in case they changed
@@ -277,6 +210,84 @@ class Driver(VISA_Driver):
         for n in range(nTrace):
             sParam = self.askAndLog(":CALC:PAR%d:DEF?" % (n + 1))
             self.dMeasParam[sParam] = (n + 1)
+    
+    def setLorentzianSweep(self):
+        """
+        Set segments for Lorentzian sweep.
+        """
+        # get parameters
+        centerFreq = self.readValueFromOther('Center frequency')
+        qEst, thetaMax = 0, 0
+        if self.getValue('Lorentzian Parameter type') == 'Q - Maximum Angle':
+            qEst = self.getValue('Q Value')
+            thetaMax = self.getValue('Maximum Angle')
+        elif self.getValue('Lorentzian Parameter type') == 'FWHM':
+            span = self.readValueFromOther('Span')
+            FWHM = self.getValue('FWHM linewidth')
+
+            qEst = centerFreq / FWHM
+            thetaMax = 2 * np.arctan(span / FWHM)
+
+        numPoints = self.getValue('# of points')
+
+        if numPoints <= 2 * 201: # maximum number of segments allowed by the instrument
+            # calculate distribution
+            frequencies = self.calcLorentzianDistr(thetaMax, numPoints, qEst, centerFreq)
+            data = []
+        else:
+            raise ValueError("Lorentzian sweep can be performed for # of points <= 402")
+
+        if numPoints <= 201:
+            ##
+            # Data =
+            # {<buf>,<stim>,<ifbw>,<pow>,<del>,<swp>,<time>,<segm>,
+            # <star 1>,<stop 1>,<nop 1>,<ifbw 1>,<pow 1>,<del 1>,<swp 1>,<time 1>,... ,
+            # <star n>,<stop n>,<nop n>,<ifbw n>,<pow n>,<del n>,<swp n>,<time n>,.... ,
+            # <star N>,<stop N>,<nop N>,<ifbw N>,<pow N>,<del N>,<swp N>,<time N>}
+            ##
+            for freq in frequencies:
+                # start freq for each segment
+                data.append(str(freq))                        # stop freq for each segment
+                data.append(str(freq))
+                # # of points for each segment
+                data.append('1')
+
+            dataset = ','.join(data)
+
+            # data format must be ascii when sending segment data
+            self.writeAndLog(':FORM:DATA ASC')
+            # change the x-axis display to frequency-base
+            self.writeAndLog(':DISP:WIND:X:SPAC LIN')
+            self.writeAndLog(':SENS:SEGM:DATA 5,0,0,0,0,0,%d,%s' % (numPoints, dataset))
+        else:
+            # if number of points is between 202 and 402
+
+            # number of segments with two points
+            nSeg2 = numPoints // 2
+            # number of segments with one point (either 0 or 1)
+            nSeg1 = numPoints % 2
+
+            nSegm = nSeg1 + nSeg2
+
+            for n in range(nSeg2):
+                # start frequency for each segment
+                data.append(str(frequencies[2 * n]))
+                # stop frequency for each segment
+                data.append(str(frequencies[2 * n + 1]))
+                # # of points for each segment
+                data.append('2')
+
+                if nSeg1 == 1: # take care of the last point if # of points is odd
+                    data.append(str(frequencies[-1]))
+                    data.append(str(frequencies[-1]))
+                    data.append('1')
+            dataset = ','.join(data)
+
+            # change the x-axis display to frequency-base
+            self.writeAndLog(':DISP:WIND:X:SPAC LIN')
+            # data format must be ascii when sending segment data
+            self.writeAndLog(':FORM:DATA ASC')
+            self.writeAndLog(':SENS:SEGM:DATA 5,0,0,0,0,0,%d,%s' % (nSegm, dataset))
 
     def calcLorentzianDistr(self, thetaMax, numPoints, qEst, centerFreq):
         """
