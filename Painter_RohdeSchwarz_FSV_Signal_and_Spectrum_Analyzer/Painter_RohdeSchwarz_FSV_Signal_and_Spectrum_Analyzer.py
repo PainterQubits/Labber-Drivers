@@ -32,8 +32,8 @@ class Driver(VISA_Driver):
                 self.writeAndLog('CALC:MARK%d:FUNC:NOIS ON' % m_idx)
             else:
                 pass
-        elif quant.name in ('RBW', 'VBW', 'Detector'):
-            # perform manual set value operation on certain quantities only if automatic setting is unchecked in the driver
+        elif quant.name in ('RBW', 'VBW', 'Detector', 'Sweep Time', 'Input Attenuation'):
+            # manual performSetValue operation on certain quantities only if automatic setting is unchecked in the driver
             if not self.getValue(quant.name + ' - Auto'):
                 # run standard VISA case
                 value = VISA_Driver.performSetValue(self, quant, value, sweepRate, options)
@@ -47,8 +47,8 @@ class Driver(VISA_Driver):
     def performGetValue(self, quant, options={}):
         """Perform the Get Value instrument operation"""
         # check type of quantity
-        if quant.isFirstCall(options) and quant.name == 'Power':
-            # Trig from computer
+        if quant.isFirstCall(options):
+            # In the first performGetValue call, acquire new trace if 'Acquire new trace' is checked
             bWaitTrace = self.getValue('Acquire new trace')
             bAverage = self.getValue('Average')
             # wait for trace, either in averaging or normal mode
@@ -56,14 +56,13 @@ class Driver(VISA_Driver):
                 # abort the current measurement and switch to single sweep mode
                 self.writeAndLog('ABOR;INIT:CONT OFF')
                 if bAverage:
-                    # switch on trace averaging mode in the display
+                    # switch on trace averaging mode on the display and setup sweep count to # of averages
                     self.writeAndLog('DISP:TRAC:MODE AVER')
-#                 if bAverage:
-#                     nAverage = self.getValue('# of averages')
-# #                        self.writeAndLog(':SENS:AVER:CLE;:ABOR;:INIT;*WAI')
-#                     self.writeAndLog('AVER:COUN %d;:INIT:IMM;*OPC' % nAverage)
-#                 else:
-#                     self.writeAndLog(':ABOR;:INIT:CONT OFF;:SENS:AVER:COUN 1;:INIT:IMM;*OPC')
+                    self.writeAndLog('SWE:COUN %d' % int(self.getValue('# of averages')))
+                else:
+                    # switch on overwrite mode on the display and setup sweep count to 1
+                    self.writeAndLog('DISP:TRAC:MODE WRIT')
+                    self.writeAndLog('SWE:COUN 1')
 
                 # Start the measurement;
                 # initialize the event status register bit to zero (changes to 1 once the job has finished)
@@ -82,10 +81,9 @@ class Driver(VISA_Driver):
                 if self.isStopped():
                     self.writeAndLog('*CLS;INIT:CONT ON;')
                     return []
+        if quant.name == 'Power':
             # get data as float32, convert to numpy array
             sData = self.ask(':FORM REAL,32;TRAC1? TRACE1')
-            if bWaitTrace and not bAverage:
-                self.writeAndLog(':INIT:CONT ON;')
             # strip header to find # of points
             i0 = sData.find(b'#')
             nDig = int(sData[(i0 + 1):(i0 + 2)])
@@ -109,9 +107,10 @@ class Driver(VISA_Driver):
         else:
             # for all other cases, call VISA driver
             value = VISA_Driver.performGetValue(self, quant, options)
-            if quant.isFinalCall(options):
-                # put the instrument in continuously triggered mode if data acquisition has finished
-                self.writeAndLog(':INIT:CONT ON;')
+
+        if quant.isFinalCall(options):
+            # leave the instrument in continuously triggered mode if all performGetValue operation has finished
+            self.writeAndLog(':INIT:CONT ON;')
         return value
 
 if __name__ == '__main__':
