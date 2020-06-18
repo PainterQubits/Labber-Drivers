@@ -38,7 +38,8 @@ class Driver(VISA_Driver):
                 # run standard VISA case
                 value = VISA_Driver.performSetValue(self, quant, value, sweepRate, options)
             else:
-                pass
+                # if automatic setting is checked, read the value from the instrument and save to local driver
+                value = self.setValue(quant.name, self.readValueFromOther(quant.name))
         else:
             # run standard VISA case
             value = VISA_Driver.performSetValue(self, quant, value, sweepRate, options)
