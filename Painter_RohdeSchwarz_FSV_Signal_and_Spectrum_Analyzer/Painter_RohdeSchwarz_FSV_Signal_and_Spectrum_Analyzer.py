@@ -25,7 +25,7 @@ class Driver(VISA_Driver):
             # do nothing
             pass
         elif quant.name in ('Marker 1 - Function',):
-            m_idx = int(quant.name[8])
+            m_idx = int(quant.name[7])
             if self.getValue(quant.name) == 'Band Power':
                 self.writeAndLog('CALC:MARK%d:FUNC:BPOW:STAT ON' % m_idx)
             elif self.getValue(quant.name) == 'Noise Density':
@@ -48,7 +48,7 @@ class Driver(VISA_Driver):
     def performGetValue(self, quant, options={}):
         """Perform the Get Value instrument operation"""
         # check type of quantity
-        if quant.isFirstCall(options):
+        if self.isFirstCall(options):
             # In the first performGetValue call, acquire new trace if 'Acquire new trace' is checked
             bWaitTrace = self.getValue('Acquire new trace')
             bAverage = self.getValue('Average')
@@ -84,7 +84,8 @@ class Driver(VISA_Driver):
                     return []
         if quant.name == 'Power':
             # get data as float32, convert to numpy array
-            sData = self.ask(':FORM REAL,32;TRAC1? TRACE1')
+            self.write(':FORM REAL,32;TRAC1? TRACE1')
+            sData = self.read(ignore_termination=True)
             # strip header to find # of points
             i0 = sData.find(b'#')
             nDig = int(sData[(i0 + 1):(i0 + 2)])
@@ -103,13 +104,13 @@ class Driver(VISA_Driver):
             # do nothing, return local value
             value = quant.getValue()
         elif quant.name in ('Marker 1 - Band Power', 'Marker 1 - Band Power Density'):
-            m_idx = int(quant.name[8])
+            m_idx = int(quant.name[7])
             value = float(self.askAndLog('CALC:MARK%d:FUNC:BPOW:RES?' % m_idx).strip('dBm/Hz'))
         else:
             # for all other cases, call VISA driver
             value = VISA_Driver.performGetValue(self, quant, options)
 
-        if quant.isFinalCall(options):
+        if self.isFinalCall(options):
             # leave the instrument in continuously triggered mode if all performGetValue operation has finished
             self.writeAndLog(':INIT:CONT ON;')
         return value
