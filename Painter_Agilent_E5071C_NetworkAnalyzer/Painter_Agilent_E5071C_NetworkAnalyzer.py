@@ -80,10 +80,10 @@ class Driver(VISA_Driver):
             value = (param in self.dMeasParam)
         elif quant.name in ('S11', 'S21', 'S12', 'S22'):
             if self.getValue('Sweep type') == 'Lorentzian':
-                # for Lorentzian sweep, make sure segment table for Lorentzian 
+                # for Lorentzian sweep, make sure segment table for Lorentzian
                 # sweep is setup with updated values before starting measurement
                 self.setLorentzianSweep()
-            
+
             # check if channel is on
             if quant.name not in self.dMeasParam:
                 # get active measurements again, in case they changed
@@ -110,7 +110,7 @@ class Driver(VISA_Driver):
                     else:
                         # turn off averaging trigger
                         self.writeAndLog(':TRIG:AVER OFF')
-
+                    self.writeAndLog(':ABOR;:INIT:CONT ON')
                     # Trigger the intrument to perform measurement
                     self.writeAndLog(':TRIG:SING')
 
@@ -146,12 +146,12 @@ class Driver(VISA_Driver):
 
                 # strip header to find # of points
                 i0 = sData.find(b'#')
-                nDig = int(sData[i0+1:i0+2])
-                nByte = int(sData[i0+2:i0+2+nDig])
-                nData = int(nByte/4)
-                nPts = int(nData/2)
+                nDig = int(sData[(i0 + 1):(i0 + 2)])
+                nByte = int(sData[(i0 + 2):(i0 + 2 + nDig)])
+                nData = int(nByte / 4)
+                nPts = int(nData / 2)
                 # get data to numpy array
-                vData = np.frombuffer(sData[(i0+2+nDig):(i0+2+nDig+nByte)],
+                vData = np.frombuffer(sData[(i0 + 2 + nDig):(i0 + 2 + nDig + nByte)],
                                       dtype='>f', count=nData)
                 # data is in I0,Q0,I1,Q1,I2,Q2,.. format, convert to complex
                 mC = vData.reshape((nPts, 2))
@@ -162,8 +162,8 @@ class Driver(VISA_Driver):
                 # if log scale, take log of start/stop frequencies
                 logX = (sweepType == 'Log')
                 span = self.readValueFromOther('Span')
-                startFreq = centerFreq - (span/2)
-                stopFreq = centerFreq + (span/2)
+                startFreq = centerFreq - (span / 2)
+                stopFreq = centerFreq + (span / 2)
                 value = quant.getTraceDict(vComplex, x0=startFreq, x1=stopFreq,
                                            logX=logX)
 
@@ -184,8 +184,8 @@ class Driver(VISA_Driver):
                                                x=self.calcLorentzianDistr(thetaMax, numPoints, qEst, centerFreq))
                 else:
                     span = self.readValueFromOther('Span')
-                    startFreq = centerFreq - (span/2)
-                    stopFreq = centerFreq + (span/2)
+                    startFreq = centerFreq - (span / 2)
+                    stopFreq = centerFreq + (span / 2)
                     value = quant.getTraceDict(vComplex, x0=startFreq, x1=stopFreq,
                                                logX=logX)
             else:
@@ -210,7 +210,7 @@ class Driver(VISA_Driver):
         for n in range(nTrace):
             sParam = self.askAndLog(":CALC:PAR%d:DEF?" % (n + 1))
             self.dMeasParam[sParam] = (n + 1)
-    
+
     def setLorentzianSweep(self):
         """
         Set segments for Lorentzian sweep.

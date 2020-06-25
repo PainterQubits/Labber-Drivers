@@ -48,8 +48,7 @@ class Driver(VISA_Driver):
     def performGetValue(self, quant, options={}):
         """Perform the Get Value instrument operation"""
         # check type of quantity
-        if self.isFirstCall(options):
-            # In the first performGetValue call, acquire new trace if 'Acquire new trace' is checked
+        if quant.name == 'Power Spectrum':
             bWaitTrace = self.getValue('Acquire new trace')
             bAverage = self.getValue('Average')
             # wait for trace, either in averaging or normal mode
@@ -82,7 +81,7 @@ class Driver(VISA_Driver):
                 if self.isStopped():
                     self.writeAndLog('*CLS;INIT:CONT ON;')
                     return []
-        if quant.name == 'Power':
+
             # get data as float32, convert to numpy array
             self.write(':FORM REAL,32;TRAC1? TRACE1')
             sData = self.read(ignore_termination=True)
@@ -110,9 +109,6 @@ class Driver(VISA_Driver):
             # for all other cases, call VISA driver
             value = VISA_Driver.performGetValue(self, quant, options)
 
-        if self.isFinalCall(options):
-            # leave the instrument in continuously triggered mode if all performGetValue operation has finished
-            self.writeAndLog(':INIT:CONT ON;')
         return value
 
 if __name__ == '__main__':
