@@ -113,25 +113,30 @@ class Driver(VISA_Driver):
                     self.writeAndLog(':ABOR;:INIT:CONT ON')
                     # Trigger the intrument to perform measurement
                     self.writeAndLog(':TRIG:SING')
+                    self.writeAndLog('*OPC')
 
-                    # get single sweep time
-                    tWait = float(self.askAndLog(':SENS:SWE:TIME?'))
-
-                    bDone = False
-
-                    # index to keep track of number of runs
-                    m = 0
                     # number of repetitions
                     nAverage = self.getValue("# of averages")
+                    # get single sweep time
+                    tSweep = float(self.askAndLog(':SENS:SWE:TIME?')) * nAverage
+
+                    # check if done at least every 10 seconds
+                    maxCheckPeriod = 10
+                    bDone = False
+
                     if not bAverage:
                         nAverage = 1
 
                     while (not bDone) and (not self.isStopped()):
-                        self.wait(tWait)
-                        m += 1
+                        # check the event status register
+                        stb = int(self.askAndLog('*ESR?'))
+                        bDone = (stb & 1) > 0
 
-                        if m == nAverage:
-                            bDone = int(self.askAndLog("*OPC?"))
+                        if tSweep < maxCheckPeriod:
+                            self.wait(tSweep)
+                        else:
+                            self.wait(maxCheckPeriod)
+
                     # if stopped, don't get data
                     if self.isStopped():
                         self.writeAndLog('*CLS;:INIT:CONT ON;')
@@ -263,7 +268,7 @@ class Driver(VISA_Driver):
             # if number of points is between 202 and 402
 
             # number of segments with two points
-            nSeg2 = numPoints // 2
+            nSeg2 = int(numPoints // 2)
             # number of segments with one point (either 0 or 1)
             nSeg1 = numPoints % 2
 
