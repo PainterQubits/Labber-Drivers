@@ -6,6 +6,7 @@ import numpy as np
 import dsp_utils as dsp_utils
 import quantum_process_tomography as qpt
 
+
 class Driver(InstrumentDriver.InstrumentWorker):
     """ This class implements a quantum process tomography driver"""
     # If any of these values are updated, we will need to update our readout trace.
@@ -28,7 +29,8 @@ class Driver(InstrumentDriver.InstrumentWorker):
         'E-F Frequency',
         'Basis Rotation Generator Pulse Length',
         'Basis Rotation Generator Pulse Sigma',
-        'Basis Rotation Generator Weight',
+        'Basis Rotation Generator Pi Weight',
+        'Basis Rotation Generator Pi-Half Weight',
         'Basis Rotation Generator Z Bias',
     ]
 
@@ -247,6 +249,10 @@ class Driver(InstrumentDriver.InstrumentWorker):
                 trace = quant.getTraceDict(signal, t0=0.0, dt=self.dt)
             return trace
 
+        elif 'QB' in quant.name:
+            demodulated_signal = self.demodulate()
+            return demodulated_signal
+
         else: 
             # for other quantities, just return current value of control
             return quant.getValue()
@@ -264,12 +270,14 @@ class Driver(InstrumentDriver.InstrumentWorker):
         are updated."""
         sampling_rate = self.getValue('Sampling Rate')
         pulse_length = self.getValue('Basis Rotation Generator Pulse Length')
-        weight = self.getValue('Basis Rotation Generator Weight')
+        pi_weight = self.getValue('Basis Rotation Generator Pi Weight')
+        pi_half_weight = self.getValue('Basis Rotation Generator Pi-Half Weight')
         z_bias = self.getValue('Basis Rotation Generator Z Bias')
         self.generator_envelopes = qpt.build_basis_rotation_envelopes(
                                        sampling_rate,
                                        pulse_length,
-                                       weight,
+                                       pi_weight,
+                                       pi_half_weight,
                                        z_bias,
                                        const_detuning=True)
 
@@ -511,3 +519,58 @@ class Driver(InstrumentDriver.InstrumentWorker):
             self.x_ef.heralding = np.zeros(0)
             self.y_ef.heralding = np.zeros(0)
             self.readout_trigger.heralding = np.zeros(0)
+
+
+    def demodulate(self):
+        """Demodulates a given signal assuming that it has been downconverted
+        from fridge output RF to the same frequency as the IF Readout Frequency
+        field of this Driver."""
+        # I'm not really sure how we can be sure about the units of dt, which 
+        # inform the units of this frequency. For example when I was running
+        # simple tests demodulating the readout waveforms of another QPT driver
+        # directly the units were in ns, but in VF's driver demodulation units
+        # are in seconds...
+        demodulation_frequency = self.getValue('Readout Frequency')*1e-3
+        signal_i = self.getValue('Demodulation - Input I')
+        signal_q = self.getValue('Demodulation - Input Q')
+        readout_samples = int(self.getValue('Demodulation - Number of Samples'))
+        dt = signal_i['dt']
+        if dt == 0:
+            dt = 1.0
+        skip_start = int(self.getValue('Demodulation - Skip') / (dt*1e9))
+        
+        complex_signal = signal_i['y'] + 1j * signal_q['y']
+
+        # In VF's demodulation code, he reshapes readout signals into chunks of
+        # 'readout_samples' length, corresponding to the expected length of the
+        # signal to demodulate - this seems to contradict the purpose of having
+        # such a field to restrict the amount of signal that gets fed into 
+        # demodulation?
+        number_of_records = int(len(complex_signal) / readout_samples)
+
+        # raise Exception(len(complex_signal))
+        # Shape complex input signal to be as long as the expected demodulation
+        holder = np.zeros(readout_samples)
+        if len(complex_signal) < readout_samples:
+            holder[:len(complex_signal)] = complex_signal
+        else:
+            holder = complex_signal[:readout_samples]
+        complex_signal = holder
+
+        # Define our demodulation reference as a 'cosine-like' (initial phase
+        # 0) complex oscillating signal at the readout IF frequency
+        t = np.linspace(0, dt*(readout_samples - 1), readout_samples)
+        demodulation_reference = np.exp(-2j * np.pi * t * demodulation_frequency)
+
+        # Perform the demodulation, which consists of a pointwise integral of
+        # our signal against a complex demodulation reference tone of fixed 
+        # frequency and phase
+        # 1: Multiply signal and demodulation reference pointwise
+        #demodulated_signal = complex_signal[skip_start: skip_start + readout_samples] * demodulation_reference[skip_start]
+        demodulated_signal = complex_signal[skip_start:] * demodulation_reference[skip_start:]
+        # 2: Sum pointwise multiplication to complete the integral
+        demodulated_signal = np.sum(demodulated_signal)
+        # 3: Normalize by length
+        demodulated_signal = demodulated_signal / (readout_samples - skip_start)
+
+        return demodulated_signal

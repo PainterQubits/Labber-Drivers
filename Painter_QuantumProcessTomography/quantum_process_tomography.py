@@ -113,7 +113,8 @@ def add_pulses_by_key(key, pulse_dictionary, ge, ef):
 
 def build_basis_rotation_envelopes(sample_rate,
                             pulse_len,
-                            weight,
+                            pi_weight,
+                            pi_half_weight,
                             z_bias,
                             const_detuning=False):
     """ Creates the signals for a pi and pi-half pulse.
@@ -132,7 +133,7 @@ def build_basis_rotation_envelopes(sample_rate,
     # Arguments for envelopes
     pi_envelope_args = {
         'A': A_pi,
-        'x_coeff': weight,
+        'x_coeff': pi_weight,
         'y_coeff': 1/2,
         'det_coeff': z_bias,
         'tg': pulse_len/2,
@@ -142,7 +143,7 @@ def build_basis_rotation_envelopes(sample_rate,
     
     pi_half_envelope_args = {
         'A': A_pi_half,
-        'x_coeff': weight,
+        'x_coeff': pi_half_weight,
         'y_coeff': 1/2,
         'det_coeff': z_bias,
         'tg': pulse_len/2,
