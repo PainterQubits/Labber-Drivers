@@ -111,12 +111,8 @@ def add_pulses_by_key(key, pulse_dictionary, ge, ef):
         ge['z'] = np.concatenate((ge['z'], pulse_dictionary['identity']))
 
 
-def build_basis_rotation_envelopes(sample_rate,
-                            pulse_len,
-                            pi_weight,
-                            pi_half_weight,
-                            z_bias,
-                            const_detuning=False):
+def build_basis_rotation_envelopes(generator_envelope_args,
+                                   const_detuning=False):
     """ Creates the signals for a pi and pi-half pulse.
 
     Args:
@@ -127,63 +123,82 @@ def build_basis_rotation_envelopes(sample_rate,
       A dictionary of 1D numpy arrays of length set by pulse_len*sample_rate
       for the gaussian envelope, derivative envelope, and detuning envelope of
       pi and pi-half pulses, as well as an identity pulse of pulse_len."""
-    A_pi = np.pi
-    A_pi_half = np.pi/2
+    sample_rate = generator_envelope_args['sampling_rate']
+    z_bias = generator_envelope_args['z_bias']
     
     # Arguments for envelopes
     pi_envelope_args = {
-        'A': A_pi,
-        'x_coeff': pi_weight,
+        'A': 1,
+        'x_coeff': 1,
         'y_coeff': 1/2,
         'det_coeff': z_bias,
-        'tg': pulse_len/2,
-        'tn': pulse_len/2,
-        'tsigma': pulse_len/4
+        'tg': generator_envelope_args['pi_pulse_length']/2,
+        'tn': generator_envelope_args['pi_pulse_length']/2,
+        'tsigma': generator_envelope_args['pi_pulse_length']/4
     }
     
     pi_half_envelope_args = {
-        'A': A_pi_half,
-        'x_coeff': pi_half_weight,
+        'A': 1,
+        'x_coeff': 1,
         'y_coeff': 1/2,
         'det_coeff': z_bias,
-        'tg': pulse_len/2,
-        'tn': pulse_len/2,
-        'tsigma': pulse_len/4
+        'tg': generator_envelope_args['pi_half_pulse_length']/2,
+        'tn': generator_envelope_args['pi_half_pulse_length']/2,
+        'tsigma': generator_envelope_args['pi_half_pulse_length']/4,
     }
     
+    _, reference_pi, _, _ = \
+            DRAG_utils.create_constant_detuning_DRAG_envelopes(sample_rate,
+                            generator_envelope_args['pi_pulse_length'],
+                            pi_envelope_args)
+    _, reference_pi_half, _, _ = \
+            DRAG_utils.create_constant_detuning_DRAG_envelopes(sample_rate,
+                            generator_envelope_args['pi_half_pulse_length'],
+                            pi_half_envelope_args)
+
+    pi_envelope_args['A'] = pi_envelope_args['A'] / np.max(reference_pi['r'])
+    pi_envelope_args['x_coeff'] = generator_envelope_args['pi_pulse_amplitude']
+    pi_half_envelope_args['A'] = pi_half_envelope_args['A'] \
+                                    / np.max(reference_pi_half['r'])
+    pi_half_envelope_args['x_coeff'] = \
+                            generator_envelope_args['pi_half_pulse_amplitude']
+
     if const_detuning:
         times, pi_env, pi_deriv, pi_dets = \
             DRAG_utils.create_constant_detuning_DRAG_envelopes(sample_rate,
-                                           pulse_len,
+                                           generator_envelope_args['pi_pulse_length'],
                                            pi_envelope_args)
         times, pi_half_env, pi_half_deriv, pi_half_dets = \
             DRAG_utils.create_constant_detuning_DRAG_envelopes(sample_rate, 
-                                           pulse_len, 
+                                           generator_envelope_args['pi_half_pulse_length'], 
                                            pi_half_envelope_args)
     else:
         times, pi_env, pi_deriv, pi_dets = \
             DRAG_utils.create_ge_envelopes(sample_rate,
-                                           pulse_len,
+                                           generator_envelope_args['pi_pulse_length'],
                                            pi_envelope_args)
         times, pi_half_env, pi_half_deriv, pi_half_dets = \
             DRAG_utils.create_ge_envelopes(sample_rate, 
-                                           pulse_len, 
+                                           generator_envelope_args['pi_half_pulse_length'], 
                                            pi_half_envelope_args)
     identity = np.zeros(len(pi_env['r']))
     
+    pi_derivative = generator_envelope_args['pi_pulse_derivative_amplitude'] \
+                        * np.array(pi_deriv['r'])
+    pi_half_derivative = generator_envelope_args['pi_half_pulse_derivative_amplitude'] \
+                        * np.array(pi_deriv['r'])
+
     # Construct the pulse dictionary:
     pulse_dict = {
       'identity': identity,
       'pi': np.array(pi_env['r']),
-      'pi_derivative': np.array(pi_deriv['r']),
+      'pi_derivative': pi_derivative,
       'pi_detuning': np.array(pi_dets['r']),
       'pi_half': np.array(pi_half_env['r']),
-      'pi_half_derivative': np.array(pi_half_deriv['r']),
+      'pi_half_derivative': pi_half_derivative,
       'pi_half_detuning': np.array(pi_half_dets['r']),
     }
     return pulse_dict
-
-
 
 
 def build_state_preparation_sequence(index, generators):

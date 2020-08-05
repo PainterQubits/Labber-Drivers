@@ -13,7 +13,8 @@ class Driver(InstrumentDriver.InstrumentWorker):
     # Additionally we'll check for any updates to any 'Readout' values.
     READOUT_STALING_CHECKLIST = [
         'Sampling Rate',
-        'Basis Rotation Generator Pulse Length',
+        'Pi Pulse Length',
+        'Pi-Half Pulse Length',
         'Initial State Index',
         'Measurement Basis Index',
         'Process Pulse Sequence',
@@ -27,10 +28,14 @@ class Driver(InstrumentDriver.InstrumentWorker):
         'Sampling Rate',
         'G-E Frequency',
         'E-F Frequency',
-        'Basis Rotation Generator Pulse Length',
-        'Basis Rotation Generator Pulse Sigma',
-        'Basis Rotation Generator Pi Weight',
-        'Basis Rotation Generator Pi-Half Weight',
+        'Pi Pulse Length',
+        'Pi Pulse Sigma',
+        'Pi Pulse Amplitude',
+        'Pi Pulse Derivative Amplitude',
+        'Pi-Half Pulse Length',
+        'Pi-Half Pulse Sigma',
+        'Pi-Half Pulse Amplitude',
+        'Pi-Half Pulse Derivative Amplitude',
         'Basis Rotation Generator Z Bias',
     ]
 
@@ -268,17 +273,22 @@ class Driver(InstrumentDriver.InstrumentWorker):
 
         This method updates the common envelope shapes whenever their parameters
         are updated."""
-        sampling_rate = self.getValue('Sampling Rate')
-        pulse_length = self.getValue('Basis Rotation Generator Pulse Length')
-        pi_weight = self.getValue('Basis Rotation Generator Pi Weight')
-        pi_half_weight = self.getValue('Basis Rotation Generator Pi-Half Weight')
-        z_bias = self.getValue('Basis Rotation Generator Z Bias')
+        generator_envelope_args = {
+            'sampling_rate': self.getValue('Sampling Rate'),
+            'pi_pulse_length': self.getValue('Pi Pulse Length'),
+            'pi_pulse_sigma': self.getValue('Pi Pulse Sigma'),
+            'pi_pulse_amplitude': self.getValue('Pi Pulse Amplitude'),
+            'pi_pulse_derivative_amplitude': \
+                                self.getValue('Pi Pulse Derivative Amplitude'),
+            'pi_half_pulse_length': self.getValue('Pi-Half Pulse Length'),
+            'pi_half_pulse_sigma': self.getValue('Pi-Half Pulse Sigma'),
+            'pi_half_pulse_amplitude': self.getValue('Pi-Half Pulse Amplitude'),
+            'pi_half_pulse_derivative_amplitude': \
+                                self.getValue('Pi-Half Pulse Derivative Amplitude'),
+            'z_bias': self.getValue('Basis Rotation Generator Z Bias'),
+        }
         self.generator_envelopes = qpt.build_basis_rotation_envelopes(
-                                       sampling_rate,
-                                       pulse_length,
-                                       pi_weight,
-                                       pi_half_weight,
-                                       z_bias,
+                                       generator_envelope_args,
                                        const_detuning=True)
 
 
