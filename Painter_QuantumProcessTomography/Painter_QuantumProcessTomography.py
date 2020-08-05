@@ -13,12 +13,14 @@ class Driver(InstrumentDriver.InstrumentWorker):
     # Additionally we'll check for any updates to any 'Readout' values.
     READOUT_STALING_CHECKLIST = [
         'Sampling Rate',
-        'Basis Rotation Generator Pulse Length',
+        'Pi Pulse Length',
+        'Pi-Half Pulse Length',
         'Initial State Index',
         'Measurement Basis Index',
         'Process Pulse Sequence',
         'Do Heralding?',
         'Delay After Heralding Pulse',
+        'Process Pulse Length',
     ]
 
     # If any of these values are updated, we will need to update the basis
@@ -27,11 +29,27 @@ class Driver(InstrumentDriver.InstrumentWorker):
         'Sampling Rate',
         'G-E Frequency',
         'E-F Frequency',
-        'Basis Rotation Generator Pulse Length',
-        'Basis Rotation Generator Pulse Sigma',
-        'Basis Rotation Generator Pi Weight',
-        'Basis Rotation Generator Pi-Half Weight',
+        'Pi Pulse Length',
+        'Pi Pulse Sigma',
+        'Pi Pulse Amplitude',
+        'Pi Pulse Derivative Amplitude',
+        'Pi-Half Pulse Length',
+        'Pi-Half Pulse Sigma',
+        'Pi-Half Pulse Amplitude',
+        'Pi-Half Pulse Derivative Amplitude',
         'Basis Rotation Generator Z Bias',
+    ]
+
+    # If any of these values are updated, we will need to update the process
+    # pulse sequence
+    PROCESS_SEQUENCE_STALING_CHECKLIST = [
+        'Sampling Rate',
+        'Process Pulse Length',
+        'Process Pulse Sigma',
+        'Process Pulse Amplitude',
+        'Process Pulse Derivative Amplitude',
+        'Process Pulse Z Bias',
+        'Custom Process?',
     ]
 
     # If any of these values are updated, we will need to update the state
@@ -105,6 +123,7 @@ class Driver(InstrumentDriver.InstrumentWorker):
         # refreshed due to changes in dependent parameters.
         self.basis_rotation_generators_are_stale = False
         self.state_prep_sequence_is_stale = False
+        self.process_sequence_is_stale = False
         self.measurement_basis_sequence_is_stale = False
         self.readout_is_stale = False
 
@@ -170,8 +189,8 @@ class Driver(InstrumentDriver.InstrumentWorker):
             self.state_prep_sequence_is_stale = True
         if quant.name in Driver.MEASUREMENT_BASIS_SEQUENCE_STALING_CHECKLIST:
             self.measurement_basis_sequence_is_stale = True
-        if quant.name == 'Process Pulse Source':
-            self.update_process_sequence()
+        if quant.name in Driver.PROCESS_SEQUENCE_STALING_CHECKLIST:
+            self.process_sequence_is_stale = True
         # just return the value
         return value
 
@@ -196,6 +215,10 @@ class Driver(InstrumentDriver.InstrumentWorker):
             if self.state_prep_sequence_is_stale:
                 self.update_state_preparation_sequence()
                 self.state_prep_sequence_is_stale = False
+           
+            if self.process_sequence_is_stale:
+                self.update_process_sequence()
+                self.process_sequence_is_stale = False
 
             if self.measurement_basis_sequence_is_stale:
                 self.update_measurement_basis_sequence()
@@ -268,17 +291,22 @@ class Driver(InstrumentDriver.InstrumentWorker):
 
         This method updates the common envelope shapes whenever their parameters
         are updated."""
-        sampling_rate = self.getValue('Sampling Rate')
-        pulse_length = self.getValue('Basis Rotation Generator Pulse Length')
-        pi_weight = self.getValue('Basis Rotation Generator Pi Weight')
-        pi_half_weight = self.getValue('Basis Rotation Generator Pi-Half Weight')
-        z_bias = self.getValue('Basis Rotation Generator Z Bias')
+        generator_envelope_args = {
+            'sampling_rate': self.getValue('Sampling Rate'),
+            'pi_pulse_length': self.getValue('Pi Pulse Length'),
+            'pi_pulse_sigma': self.getValue('Pi Pulse Sigma'),
+            'pi_pulse_amplitude': self.getValue('Pi Pulse Amplitude'),
+            'pi_pulse_derivative_amplitude': \
+                                self.getValue('Pi Pulse Derivative Amplitude'),
+            'pi_half_pulse_length': self.getValue('Pi-Half Pulse Length'),
+            'pi_half_pulse_sigma': self.getValue('Pi-Half Pulse Sigma'),
+            'pi_half_pulse_amplitude': self.getValue('Pi-Half Pulse Amplitude'),
+            'pi_half_pulse_derivative_amplitude': \
+                                self.getValue('Pi-Half Pulse Derivative Amplitude'),
+            'z_bias': self.getValue('Basis Rotation Generator Z Bias'),
+        }
         self.generator_envelopes = qpt.build_basis_rotation_envelopes(
-                                       sampling_rate,
-                                       pulse_length,
-                                       pi_weight,
-                                       pi_half_weight,
-                                       z_bias,
+                                       generator_envelope_args,
                                        const_detuning=True)
 
 
@@ -320,11 +348,40 @@ class Driver(InstrumentDriver.InstrumentWorker):
         QPT driver (in its current manifestation) could tomogrep would be 
         entirely Clifford processes that the Clifford generators stored herein
         could create."""
-        self.x_ge.process = self.getValue('Process X - G-E')['y']
-        self.x_ef.process = self.getValue('Process X - E-F')['y']
-        self.y_ge.process = self.getValue('Process Y - G-E')['y']
-        self.y_ef.process = self.getValue('Process Y - E-F')['y']
-        self.z.process = self.getValue('Process Z')['y']
+        use_custom_process = self.getValue('Custom Process?')
+        if use_custom_process:
+            self.x_ge.process = self.getValue('Process X - G-E')['y']
+            self.x_ef.process = self.getValue('Process X - E-F')['y']
+            self.y_ge.process = self.getValue('Process Y - G-E')['y']
+            self.y_ef.process = self.getValue('Process Y - E-F')['y']
+            self.z.process = self.getValue('Process Z')['y']
+    
+            
+        else:
+            sampling_rate = self.getValue('Sampling Rate')
+            envelope_amplitude = self.getValue('Process Pulse Amplitude')
+            derivative_amplitude = self.getValue(
+                                        'Process Pulse Derivative Amplitude')
+            process_z_bias = self.getValue('Process Pulse Z Bias')
+            gaussian_args = {
+                'length': self.getValue('Process Pulse Length'),
+                'sigma': self.getValue('Process Pulse Length')/4,
+            }
+            envelope, derivative = qpt.get_basic_gaussian_process_pulse(
+                                                                sampling_rate,
+                                                                gaussian_args)
+
+            if 'G-E' in self.getValue('Process Pulse Frequency'):
+                self.x_ge.process = envelope_amplitude * envelope
+                self.y_ge.process = derivative_amplitude * derivative
+                self.x_ef.process = np.zeros(len(envelope))
+                self.y_ef.process = np.zeros(len(envelope))
+            else:
+                self.x_ge.process = np.zeros(len(envelope))
+                self.y_ge.process = np.zeros(len(envelope))
+                self.x_ef.process = envelope_amplitude * envelope
+                self.y_ef.process = derivative_amplitude * derivative
+            self.z.process = process_z_bias * np.ones(len(envelope))
 
         self.readout_i.process = np.zeros(len(self.x_ge.process))
         self.readout_q.process = np.zeros(len(self.x_ge.process))
