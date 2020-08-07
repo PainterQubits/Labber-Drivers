@@ -138,7 +138,8 @@ class Driver(InstrumentDriver.InstrumentWorker):
         # Both G-E and E-F pulses use the same general envelope shapes, just
         # upconverted to different frequencies.
         self.generator_envelopes = {
-            'identity': np.zeros(0),
+            'pi_identity': np.zeros(0),
+            'pi_half_identity': np.zeros(0),
             'pi': np.zeros(0),
             'pi_derivative': np.zeros(0),
             'pi_detuning': np.zeros(0),
@@ -238,11 +239,19 @@ class Driver(InstrumentDriver.InstrumentWorker):
                 x_ge_signal = dsp_utils.modulate_signal(self.x_ge.build_sequence(),
                                                  self.dt,
                                                  ge_frequency,
-                                                 np.pi/2) # sine phase
+                                                 np.pi/2) \
+                              + dsp_utils.modulate_signal(self.y_ge.build_sequence(),
+                                                 self.dt,
+                                                 ge_frequency,
+                                                 -np.pi/2) # sine phase
                 x_ef_signal = dsp_utils.modulate_signal(self.x_ef.build_sequence(),
                                                  self.dt,
                                                  ef_frequency,
-                                                 np.pi/2) # sine phase
+                                                 np.pi/2) \
+                              + dsp_utils.modulate_signal(self.y_ef.build_sequence(),
+                                                 self.dt,
+                                                 ef_frequency,
+                                                 -np.pi/2) 
                 signal = x_ge_signal + x_ef_signal
                 trace = quant.getTraceDict(signal, t0=0.0, dt=self.dt)
             elif quant.name == 'Waveform - Y Signal':
@@ -251,11 +260,20 @@ class Driver(InstrumentDriver.InstrumentWorker):
                 y_ge_signal = dsp_utils.modulate_signal(self.y_ge.build_sequence(),
                                                  self.dt,
                                                  ge_frequency,
-                                                 0) # cosine phase
+                                                 0) \
+                              + dsp_utils.modulate_signal(self.x_ge.build_sequence(),
+                                                 self.dt,
+                                                 ge_frequency,
+                                                 0)
                 y_ef_signal = dsp_utils.modulate_signal(self.y_ef.build_sequence(),
                                                  self.dt,
                                                  ef_frequency,
-                                                 0) # cosine phase
+                                                 0) \
+                              + dsp_utils.modulate_signal(self.x_ef.build_sequence(),
+                                                 self.dt,
+                                                 ef_frequency,
+                                                 0)
+
                 signal = y_ge_signal + y_ef_signal
                 trace = quant.getTraceDict(signal, t0=0.0, dt=self.dt)
             elif quant.name == 'Waveform - Z Signal':

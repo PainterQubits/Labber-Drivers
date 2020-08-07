@@ -57,58 +57,58 @@ def add_pulses_by_key(key, pulse_dictionary, ge, ef):
         ge['x'] = np.concatenate((ge['x'], pulse_dictionary['pi']))
         ge['y'] = np.concatenate((ge['y'], pulse_dictionary['pi_derivative']))
         ge['z'] = np.concatenate((ge['z'], pulse_dictionary['pi_detuning']))
-        ef['x'] = np.concatenate((ef['x'], pulse_dictionary['identity']))
-        ef['y'] = np.concatenate((ef['y'], pulse_dictionary['identity']))
-        ef['z'] = np.concatenate((ef['z'], pulse_dictionary['identity']))
+        ef['x'] = np.concatenate((ef['x'], pulse_dictionary['pi_identity']))
+        ef['y'] = np.concatenate((ef['y'], pulse_dictionary['pi_identity']))
+        ef['z'] = np.concatenate((ef['z'], pulse_dictionary['pi_identity']))
     elif key is 'x_ef':
         ef['x'] = np.concatenate((ef['x'], pulse_dictionary['pi']))
         ef['y'] = np.concatenate((ef['y'], pulse_dictionary['pi_derivative']))
         ef['z'] = np.concatenate((ef['z'], pulse_dictionary['pi_detuning']))
-        ge['x'] = np.concatenate((ge['x'], pulse_dictionary['identity']))
-        ge['y'] = np.concatenate((ge['y'], pulse_dictionary['identity']))
-        ge['z'] = np.concatenate((ge['z'], pulse_dictionary['identity']))
+        ge['x'] = np.concatenate((ge['x'], pulse_dictionary['pi_identity']))
+        ge['y'] = np.concatenate((ge['y'], pulse_dictionary['pi_identity']))
+        ge['z'] = np.concatenate((ge['z'], pulse_dictionary['pi_identity']))
     elif key is 'x_half_ge':
         ge['x'] = np.concatenate((ge['x'], pulse_dictionary['pi_half']))
         ge['y'] = np.concatenate((ge['y'], pulse_dictionary['pi_half_derivative']))
         ge['z'] = np.concatenate((ge['z'], pulse_dictionary['pi_half_detuning']))
-        ef['x'] = np.concatenate((ef['x'], pulse_dictionary['identity']))
-        ef['y'] = np.concatenate((ef['y'], pulse_dictionary['identity']))
-        ef['z'] = np.concatenate((ef['z'], pulse_dictionary['identity']))
+        ef['x'] = np.concatenate((ef['x'], pulse_dictionary['pi_half_identity']))
+        ef['y'] = np.concatenate((ef['y'], pulse_dictionary['pi_half_identity']))
+        ef['z'] = np.concatenate((ef['z'], pulse_dictionary['pi_half_identity']))
     elif key is 'x_half_ef':
         ef['x'] = np.concatenate((ef['x'], pulse_dictionary['pi_half']))
         ef['y'] = np.concatenate((ef['y'], pulse_dictionary['pi_half_derivative']))
         ef['z'] = np.concatenate((ef['z'], pulse_dictionary['pi_half_detuning']))
-        ge['x'] = np.concatenate((ge['x'], pulse_dictionary['identity']))
-        ge['y'] = np.concatenate((ge['y'], pulse_dictionary['identity']))
-        ge['z'] = np.concatenate((ge['z'], pulse_dictionary['identity']))
+        ge['x'] = np.concatenate((ge['x'], pulse_dictionary['pi_half_identity']))
+        ge['y'] = np.concatenate((ge['y'], pulse_dictionary['pi_half_identity']))
+        ge['z'] = np.concatenate((ge['z'], pulse_dictionary['pi_half_identity']))
     elif key is 'y_ge':
         ge['y'] = np.concatenate((ge['y'], pulse_dictionary['pi']))
         ge['x'] = np.concatenate((ge['x'], -pulse_dictionary['pi_derivative']))
         ge['z'] = np.concatenate((ge['z'], pulse_dictionary['pi_detuning']))
-        ef['x'] = np.concatenate((ef['x'], pulse_dictionary['identity']))
-        ef['y'] = np.concatenate((ef['y'], pulse_dictionary['identity']))
-        ef['z'] = np.concatenate((ef['z'], pulse_dictionary['identity']))
+        ef['x'] = np.concatenate((ef['x'], pulse_dictionary['pi_identity']))
+        ef['y'] = np.concatenate((ef['y'], pulse_dictionary['pi_identity']))
+        ef['z'] = np.concatenate((ef['z'], pulse_dictionary['pi_identity']))
     elif key is 'y_ef':
         ef['y'] = np.concatenate((ef['y'], pulse_dictionary['pi']))
         ef['x'] = np.concatenate((ef['x'], -pulse_dictionary['pi_derivative']))
         ef['z'] = np.concatenate((ef['z'], pulse_dictionary['pi_detuning']))
-        ge['x'] = np.concatenate((ge['x'], pulse_dictionary['identity']))
-        ge['y'] = np.concatenate((ge['y'], pulse_dictionary['identity']))
-        ge['z'] = np.concatenate((ge['z'], pulse_dictionary['identity']))
+        ge['x'] = np.concatenate((ge['x'], pulse_dictionary['pi_identity']))
+        ge['y'] = np.concatenate((ge['y'], pulse_dictionary['pi_identity']))
+        ge['z'] = np.concatenate((ge['z'], pulse_dictionary['pi_identity']))
     elif key is 'y_half_ge':
         ge['y'] = np.concatenate((ge['y'], pulse_dictionary['pi_half']))
         ge['x'] = np.concatenate((ge['x'], -pulse_dictionary['pi_half_derivative']))
         ge['z'] = np.concatenate((ge['z'], pulse_dictionary['pi_half_detuning']))
-        ef['x'] = np.concatenate((ef['x'], pulse_dictionary['identity']))
-        ef['y'] = np.concatenate((ef['y'], pulse_dictionary['identity']))
-        ef['z'] = np.concatenate((ef['z'], pulse_dictionary['identity']))
+        ef['x'] = np.concatenate((ef['x'], pulse_dictionary['pi_half_identity']))
+        ef['y'] = np.concatenate((ef['y'], pulse_dictionary['pi_half_identity']))
+        ef['z'] = np.concatenate((ef['z'], pulse_dictionary['pi_half_identity']))
     elif key is 'y_half_ef':
         ef['y'] = np.concatenate((ef['y'], pulse_dictionary['pi_half']))
         ef['x'] = np.concatenate((ef['x'], -pulse_dictionary['pi_half_derivative']))
         ef['z'] = np.concatenate((ef['z'], pulse_dictionary['pi_half_detuning']))
-        ge['x'] = np.concatenate((ge['x'], pulse_dictionary['identity']))
-        ge['y'] = np.concatenate((ge['y'], pulse_dictionary['identity']))
-        ge['z'] = np.concatenate((ge['z'], pulse_dictionary['identity']))
+        ge['x'] = np.concatenate((ge['x'], pulse_dictionary['pi_half_identity']))
+        ge['y'] = np.concatenate((ge['y'], pulse_dictionary['pi_half_identity']))
+        ge['z'] = np.concatenate((ge['z'], pulse_dictionary['pi_half_identity']))
 
 
 def build_basis_rotation_envelopes(generator_envelope_args,
@@ -181,16 +181,18 @@ def build_basis_rotation_envelopes(generator_envelope_args,
             DRAG_utils.create_ge_envelopes(sample_rate, 
                                            generator_envelope_args['pi_half_pulse_length'], 
                                            pi_half_envelope_args)
-    identity = np.zeros(len(pi_env['r']))
+    pi_identity = np.zeros(len(pi_env['r']))
+    pi_half_identity = np.zeros(len(pi_half_env['r']))
     
     pi_derivative = generator_envelope_args['pi_pulse_derivative_amplitude'] \
                         * np.array(pi_deriv['r'])
     pi_half_derivative = generator_envelope_args['pi_half_pulse_derivative_amplitude'] \
-                        * np.array(pi_deriv['r'])
+                        * np.array(pi_half_deriv['r'])
 
     # Construct the pulse dictionary:
     pulse_dict = {
-      'identity': identity,
+      'pi_identity': pi_identity,
+      'pi_half_identity': pi_half_identity,
       'pi': np.array(pi_env['r']),
       'pi_derivative': pi_derivative,
       'pi_detuning': np.array(pi_dets['r']),
