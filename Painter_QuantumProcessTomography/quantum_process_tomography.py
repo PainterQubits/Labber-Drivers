@@ -125,6 +125,8 @@ def build_basis_rotation_envelopes(generator_envelope_args,
       pi and pi-half pulses, as well as an identity pulse of pulse_len."""
     sample_rate = generator_envelope_args['sampling_rate']
     z_bias = generator_envelope_args['z_bias']
+    num_pi_sigmas = generator_envelope_args['pi_pulse_sigma']
+    num_pi_half_sigmas = generator_envelope_args['pi_half_pulse_sigma']
     
     # Arguments for envelopes
     pi_envelope_args = {
@@ -134,7 +136,7 @@ def build_basis_rotation_envelopes(generator_envelope_args,
         'det_coeff': z_bias,
         'tg': generator_envelope_args['pi_pulse_length']/2,
         'tn': generator_envelope_args['pi_pulse_length']/2,
-        'tsigma': generator_envelope_args['pi_pulse_length']/4
+        'tsigma': generator_envelope_args['pi_pulse_length'] / num_pi_sigmas
     }
     
     pi_half_envelope_args = {
@@ -144,7 +146,7 @@ def build_basis_rotation_envelopes(generator_envelope_args,
         'det_coeff': z_bias,
         'tg': generator_envelope_args['pi_half_pulse_length']/2,
         'tn': generator_envelope_args['pi_half_pulse_length']/2,
-        'tsigma': generator_envelope_args['pi_half_pulse_length']/4,
+        'tsigma': generator_envelope_args['pi_half_pulse_length'] / num_pi_half_sigmas,
     }
     
     _, reference_pi, _, _ = \
@@ -273,7 +275,7 @@ def get_basic_gaussian_process_pulse(sampling_rate, gaussian_args):
         'det_coeff': 0,
         'tg': gaussian_args['length']/2,
         'tn': gaussian_args['length']/2,
-        'tsigma': gaussian_args['length']/4
+        'tsigma': gaussian_args['sigma']
     }
     _, envelope, derivative, _ = \
             DRAG_utils.create_constant_detuning_DRAG_envelopes(sampling_rate,

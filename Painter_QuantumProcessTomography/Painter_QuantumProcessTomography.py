@@ -30,11 +30,11 @@ class Driver(InstrumentDriver.InstrumentWorker):
         'G-E Frequency',
         'E-F Frequency',
         'Pi Pulse Length',
-        'Pi Pulse Sigma',
+        'Pi Pulse Sigmas',
         'Pi Pulse Amplitude',
         'Pi Pulse Derivative Amplitude',
         'Pi-Half Pulse Length',
-        'Pi-Half Pulse Sigma',
+        'Pi-Half Pulse Sigmas',
         'Pi-Half Pulse Amplitude',
         'Pi-Half Pulse Derivative Amplitude',
         'Basis Rotation Generator Z Bias',
@@ -192,6 +192,12 @@ class Driver(InstrumentDriver.InstrumentWorker):
             self.measurement_basis_sequence_is_stale = True
         if quant.name in Driver.PROCESS_SEQUENCE_STALING_CHECKLIST:
             self.process_sequence_is_stale = True
+        # Force standard deviations of pulses to be integers
+        if 'Sigmas' in quant.name:
+            if value <= 1:
+                value = 1
+            else:
+                value = np.floor(value)
         # just return the value
         return value
 
@@ -312,12 +318,12 @@ class Driver(InstrumentDriver.InstrumentWorker):
         generator_envelope_args = {
             'sampling_rate': self.getValue('Sampling Rate'),
             'pi_pulse_length': self.getValue('Pi Pulse Length'),
-            'pi_pulse_sigma': self.getValue('Pi Pulse Sigma'),
+            'pi_pulse_sigma': self.getValue('Pi Pulse Sigmas'),
             'pi_pulse_amplitude': self.getValue('Pi Pulse Amplitude'),
             'pi_pulse_derivative_amplitude': \
                                 self.getValue('Pi Pulse Derivative Amplitude'),
             'pi_half_pulse_length': self.getValue('Pi-Half Pulse Length'),
-            'pi_half_pulse_sigma': self.getValue('Pi-Half Pulse Sigma'),
+            'pi_half_pulse_sigma': self.getValue('Pi-Half Pulse Sigmas'),
             'pi_half_pulse_amplitude': self.getValue('Pi-Half Pulse Amplitude'),
             'pi_half_pulse_derivative_amplitude': \
                                 self.getValue('Pi-Half Pulse Derivative Amplitude'),
@@ -383,7 +389,7 @@ class Driver(InstrumentDriver.InstrumentWorker):
             process_z_bias = self.getValue('Process Pulse Z Bias')
             gaussian_args = {
                 'length': self.getValue('Process Pulse Length'),
-                'sigma': self.getValue('Process Pulse Length')/4,
+                'sigma': self.getValue('Process Pulse Sigma'),
             }
             envelope, derivative = qpt.get_basic_gaussian_process_pulse(
                                                                 sampling_rate,
