@@ -611,7 +611,7 @@ class Driver(InstrumentDriver.InstrumentWorker):
         # simple tests demodulating the readout waveforms of another QPT driver
         # directly the units were in ns, but in VF's driver demodulation units
         # are in seconds...
-        demodulation_frequency = self.getValue('Readout Frequency')*1e-3
+        demodulation_frequency = self.getValue('Readout Frequency')*1e6
         signal_i = self.getValue('Demodulation - Input I')
         signal_q = self.getValue('Demodulation - Input Q')
         readout_samples = int(self.getValue('Demodulation - Number of Samples'))
