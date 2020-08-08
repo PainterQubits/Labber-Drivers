@@ -10,13 +10,15 @@ class Driver(InstrumentDriver.InstrumentWorker):
     # Additionally we'll check for any updates to any 'Readout' values.
     READOUT_STALING_CHECKLIST = [
         'Sampling Rate',
-        'Clifford Generator Pulse Length',
         'Sequence Length',
         'Random Seed',
         'Do interleaved RB?',
         'Interleaved Gate',
         'Do Heralding?',
         'Delay After Heralding Pulse',
+        'Pi Pulse Length',
+        'Pi-Half Pulse Length',
+        'Percent of Sequence',
     ]
 
     # If any of these values are updated, we will need to update the Clifford
@@ -24,10 +26,16 @@ class Driver(InstrumentDriver.InstrumentWorker):
     CLIFFORD_GENERATOR_STALING_CHECKLIST = [
         'Sampling Rate',
         'Modulation Frequency',
-        'Clifford Generator Pulse Length',
-        'Clifford Generator Pulse Sigma',
-        'Primary Envelope Weight',
-        'Derivative Envelope Weight',
+        'Pi Pulse Length',
+        'Pi Pulse Sigmas',
+        'Pi Pulse Amplitude',
+        'Pi Pulse Derivative Amplitude',
+        'Pi Pulse DRAG Z Bias',
+        'Pi-Half Pulse Length',
+        'Pi-Half Pulse Sigmas',
+        'Pi-Half Pulse Amplitude',
+        'Pi-Half Pulse Derivative Amplitude',
+        'Pi-Half Pulse DRAG Z Bias',
         'Constant Detuning Bias',
     ]
 
@@ -37,6 +45,7 @@ class Driver(InstrumentDriver.InstrumentWorker):
         'Random Seed',
         'Do interleaved RB?',
         'Interleaved Gate',
+        'Percent of Sequence',
     ]
 
     def performOpen(self, options={}):
@@ -94,7 +103,18 @@ class Driver(InstrumentDriver.InstrumentWorker):
             self.clifford_generators_are_stale = True
         if quant.name in Driver.CLIFFORD_SEQUENCE_STALING_CHECKLIST:
             self.clifford_sequence_is_stale = True
-        # just return the value
+
+        # Perform some input handling
+        if quant.name == 'Percent of Sequence':
+            if not 0 <= value <= 100:
+                value = 100
+        if quant.name == 'Sequence Length':
+            if value < -4:
+                value = 0
+        if 'Sigmas' in quant.name:
+            if value <= 0:
+                value = 1
+            value = np.ceil(value)
         return value
 
 
@@ -157,19 +177,42 @@ class Driver(InstrumentDriver.InstrumentWorker):
 
     def update_clifford_generators(self):
         sampling_rate = self.getValue('Sampling Rate')
-        pulse_length = self.getValue('Clifford Generator Pulse Length')
-        alpha = self.getValue('Primary Envelope Weight')
-        beta = self.getValue('Derivative Envelope Weight')
-        delta = self.getValue('Constant Detuning Bias')
+
+        pi_pulse_length = self.getValue('Pi Pulse Length')
+        pi_pulse_sigmas = self.getValue('Pi Pulse Sigmas')
+        pi_pulse_amplitude = self.getValue('Pi Pulse Amplitude')
+        pi_pulse_derivative_amplitude = \
+            self.getValue('Pi Pulse Derivative Amplitude')
+        pi_pulse_detuning = self.getValue('Pi Pulse DRAG Z Bias')
+
+        pi_half_pulse_length = self.getValue('Pi-Half Pulse Length')
+        pi_half_pulse_sigmas = self.getValue('Pi-Half Pulse Sigmas')
+        pi_half_pulse_amplitude = self.getValue('Pi-Half Pulse Amplitude')
+        pi_half_pulse_derivative_amplitude = \
+            self.getValue('Pi-Half Pulse Derivative Amplitude')
+        pi_half_pulse_detuning = self.getValue('Pi-Half Pulse DRAG Z Bias')
+
+        shared_detuning = self.getValue('Shared Z Bias')
+
         # Generate the generator signals and create a pulse sequence
-        DRAG_params = {
-            'x_coeff': alpha,
-            'y_coeff': beta,
-            'det_coeff': delta
+        pi_params = {
+            'length': pi_pulse_length,
+            'standard_deviation': pi_pulse_length / pi_pulse_sigmas,
+            'amplitude': pi_pulse_amplitude,
+            'derivative_amplitude': pi_pulse_derivative_amplitude,
+            'detuning': pi_pulse_detuning + shared_detuning,
         }
-        self.clifford_generators = rb.build_generator_signals(pulse_length,
-                                       sampling_rate,
-                                       DRAG_params,
+        pi_half_params = {
+            'length': pi_half_pulse_length,
+            'standard_deviation': pi_half_pulse_length / pi_half_pulse_sigmas,
+            'amplitude': pi_half_pulse_amplitude,
+            'derivative_amplitude': pi_half_pulse_derivative_amplitude,
+            'detuning': pi_half_pulse_detuning + shared_detuning,
+        }
+        
+        self.clifford_generators = rb.build_generator_signals(sampling_rate,
+                                       pi_params,
+                                       pi_half_params,
                                        const_detuning=True)
     
 
@@ -179,35 +222,50 @@ class Driver(InstrumentDriver.InstrumentWorker):
         num_cliffords = int(self.getValue('Sequence Length'))
         do_interleave = self.getValue('Do interleaved RB?')
 
-        # Update sequence
-        np.random.seed(seed)
-        if not do_interleave:
-            self.clifford_sequence = rb.generate_random_clifford_sequence(
-                                         num_cliffords)
+        # Use special seeds -1 and -2 for pi and pi-half pulses for calibration
+        if not num_cliffords < 0:
+            # Update sequence
+            np.random.seed(seed + 10015 * num_cliffords)
+            if not do_interleave:
+                self.clifford_sequence = rb.generate_random_clifford_sequence(
+                                             num_cliffords)
+            else:
+                interleaved_gate = int(self.getValue('Interleaved Gate'))
+                self.clifford_sequence = rb.generate_random_clifford_sequence(
+                                             num_cliffords,
+                                             interleaved_gate=interleaved_gate)
         else:
-            interleaved_gate = int(self.getValue('Interleaved Gate'))
-            self.clifford_sequence = rb.generate_random_clifford_sequence(
-                                         num_cliffords,
-                                         interleaved_gate=interleaved_gate)
+            if num_cliffords == -1:
+                self.clifford_sequence = ['xp']
+            elif num_cliffords == -2:
+                self.clifford_sequence = ['x2p']
+            elif num_cliffords == -3:
+                self.clifford_sequence = ['yp']
+            elif num_cliffords == -4:
+                self.clifford_sequence = ['y2p']
 
 
     def update_xyz_sequences(self):
         # Collect necessary quantities
         sampling_rate = self.getValue('Sampling Rate')
-        pulse_length = self.getValue('Clifford Generator Pulse Length')
         modulation_frequency = 1e-3*self.getValue('Modulation Frequency')
+        percent_of_sequence = self.getValue('Percent of Sequence') / 100
 
         # Update sequences
         x, y, z, times = rb.build_full_pulse_sequence(self.clifford_sequence,
-                             pulse_length,
                              self.clifford_generators,
                              sampling_rate)
         self.dt = 1 / sampling_rate
-        x = dsp_utils.modulate_signal(x, self.dt, modulation_frequency, 0)
-        y = dsp_utils.modulate_signal(y, self.dt, modulation_frequency, 0)
-        self.x = x
-        self.y = y
-        self.z = z
+        x_signal = dsp_utils.modulate_signal(x, self.dt, modulation_frequency, 0) \
+                   + dsp_utils.modulate_signal(y, self.dt, modulation_frequency, np.pi/2)
+        y_signal = dsp_utils.modulate_signal(y, self.dt, modulation_frequency, 0) \
+                   + dsp_utils.modulate_signal(x, self.dt, modulation_frequency, -np.pi/2)
+
+        samples_to_keep = int(percent_of_sequence * len(x_signal))
+
+        self.x = x_signal[:samples_to_keep]
+        self.y = y_signal[:samples_to_keep]
+        self.z = z[:samples_to_keep]
 
 
     def update_readout(self):
@@ -281,6 +339,7 @@ class Driver(InstrumentDriver.InstrumentWorker):
         self.readout_i = np.concatenate((presignal, readout_i))
         self.readout_q = np.concatenate((presignal, readout_q))
 
+        # TODO: THIS MIGHT BE HORRIBLY BROKEN NOW
         if do_heralding:
             heralding_delay = self.getValue('Delay After Heralding Pulse')
             heralding_downtime = np.linspace(0, heralding_delay, sampling_rate*heralding_delay)
@@ -319,7 +378,7 @@ class Driver(InstrumentDriver.InstrumentWorker):
         # simple tests demodulating the readout waveforms of another QPT driver
         # directly the units were in ns, but in VF's driver demodulation units
         # are in seconds...
-        demodulation_frequency = self.getValue('Readout Frequency')*1e-3
+        demodulation_frequency = self.getValue('Readout Frequency')*1e6
         signal_i = self.getValue('Demodulation - Input I')
         signal_q = self.getValue('Demodulation - Input Q')
         readout_samples = int(self.getValue('Demodulation - Number of Samples'))

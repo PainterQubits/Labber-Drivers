@@ -91,9 +91,9 @@ def add_singleQ_clifford(index, gate_seq):
 
 def add_pulses_by_key(key, pulses, x, y, z):
     if key is 'id':
-        x = np.concatenate((x, pulses['identity']))
-        y = np.concatenate((y, pulses['identity']))
-        z = np.concatenate((z, pulses['identity']))
+        x = np.concatenate((x, pulses['pi_identity']))
+        y = np.concatenate((y, pulses['pi_identity']))
+        z = np.concatenate((z, pulses['pi_identity']))
     elif key is 'xp':
         if 'x_pi' in pulses:
             x = np.concatenate((x, pulses['x_pi']))
@@ -130,7 +130,7 @@ def add_pulses_by_key(key, pulses, x, y, z):
     return x, y, z
 
 
-def build_full_pulse_sequence(gate_seq, pulse_len, pulse_dictionary, sample_rate):
+def build_full_pulse_sequence(gate_seq, pulse_dictionary, sample_rate):
     x = np.zeros((0))
     y = np.zeros((0))
     z = np.zeros((0))
@@ -139,9 +139,11 @@ def build_full_pulse_sequence(gate_seq, pulse_len, pulse_dictionary, sample_rate
     
     # calculate total time
     num_gates = len(gate_seq)
-    total_time = pulse_len*num_gates
+    # total_time = pulse_len*num_gates
     # for now, cumbersomely assume that the noise gates are as long as the actual gates
-    times = np.linspace(0, total_time, sample_rate*total_time)
+    num_samples = len(x)
+    total_time = num_samples / sample_rate
+    times = np.linspace(0, total_time, num_samples)
     return x, y, z, times
 
 
@@ -230,9 +232,9 @@ def add_noise(x, y, z, noise_pulses):
     z = np.concatenate((y, noise_pulses['y']))
 
 
-def build_generator_signals(pulse_len,
-                            sample_rate,
-                            DRAG_params,
+def build_generator_signals(sample_rate,
+                            pi_params,
+                            pi_half_params,
                             const_detuning=False):
     """ Creates the signals for a pi and pi-half pulse.
 
@@ -244,53 +246,78 @@ def build_generator_signals(pulse_len,
       A dictionary of 1D numpy arrays of length set by pulse_len*sample_rate
       for the gaussian envelope, derivative envelope, and detuning envelope of
       pi and pi-half pulses, as well as an identity pulse of pulse_len."""
-    A_pi = np.pi
-    A_pi_half = np.pi/2
+    A_pi = 1
+    A_pi_half = 1
+
+    pi_length = pi_params['length']
+    pi_half_length = pi_half_params['length']
     
     # Arguments for envelopes
     pi_envelope_args = {
         'A': A_pi,
-        'x_coeff': DRAG_params['x_coeff'],
-        'y_coeff': DRAG_params['y_coeff'],
-        'det_coeff': DRAG_params['det_coeff'],
-        'tg': pulse_len/2,
-        'tn': pulse_len/2,
-        'tsigma': pulse_len/4
+        'x_coeff': 1,
+        'y_coeff': 1,
+        'det_coeff': pi_params['detuning'],
+        'tg': pi_length / 2,
+        'tn': pi_length / 2,
+        'tsigma': pi_params['standard_deviation']
     }
     
     pi_half_envelope_args = {
         'A': A_pi_half,
-        'x_coeff': DRAG_params['x_coeff'],
-        'y_coeff': DRAG_params['y_coeff'],
-        'det_coeff': DRAG_params['det_coeff'],
-        'tg': pulse_len/2,
-        'tn': pulse_len/2,
-        'tsigma': pulse_len/4
+        'x_coeff': 1,
+        'y_coeff': 1,
+        'det_coeff': pi_half_params['detuning'],
+        'tg': pi_half_length / 2,
+        'tn': pi_half_length / 2,
+        'tsigma': pi_half_params['standard_deviation']
     }
+
+    _, pi_ref, pi_deriv_ref, _ = \
+            DRAG_utils.create_constant_detuning_DRAG_envelopes(sample_rate,
+                                           pi_length,
+                                           pi_envelope_args)
+    _, pi_half_ref, pi_half_deriv_ref, _ = \
+            DRAG_utils.create_constant_detuning_DRAG_envelopes(sample_rate, 
+                                           pi_half_length, 
+                                           pi_half_envelope_args)
+    
+    if np.max(pi_ref['r']) > 0:
+        pi_envelope_args['x_coeff'] = pi_params['amplitude'] \
+                                         / np.max(pi_ref['r'])
+        pi_envelope_args['y_coeff'] = pi_params['derivative_amplitude'] \
+                                         / np.max(pi_deriv_ref['r'])
+    if np.max(pi_half_ref['r']) > 0:
+        pi_half_envelope_args['x_coeff'] = pi_half_params['amplitude'] \
+                                         / np.max(pi_half_ref['r'])
+        pi_half_envelope_args['y_coeff'] = pi_half_params['derivative_amplitude'] \
+                                         / np.max(pi_half_deriv_ref['r'])
     
     if const_detuning:
         times, pi_env, pi_deriv, pi_dets = \
             DRAG_utils.create_constant_detuning_DRAG_envelopes(sample_rate,
-                                           pulse_len,
+                                           pi_length,
                                            pi_envelope_args)
         times, pi_half_env, pi_half_deriv, pi_half_dets = \
             DRAG_utils.create_constant_detuning_DRAG_envelopes(sample_rate, 
-                                           pulse_len, 
+                                           pi_half_length, 
                                            pi_half_envelope_args)
     else:
         times, pi_env, pi_deriv, pi_dets = \
             DRAG_utils.create_ge_envelopes(sample_rate,
-                                           pulse_len,
+                                           pi_length,
                                            pi_envelope_args)
         times, pi_half_env, pi_half_deriv, pi_half_dets = \
             DRAG_utils.create_ge_envelopes(sample_rate, 
-                                           pulse_len, 
+                                           pi_half_length, 
                                            pi_half_envelope_args)
-    identity = np.zeros(len(pi_env['r']))
+    pi_identity = np.zeros(len(pi_env['r']))
+    pi_half_identity = np.zeros(len(pi_half_env['r']))
     
     # Construct the pulse dictionary:
     pulse_dict = {
-      'identity': identity,
+      'pi_identity': pi_identity,
+      'pi_half_identity': pi_half_identity,
       'pi': np.array(pi_env['r']),
       'pi_derivative': np.array(pi_deriv['r']),
       'pi_detuning': np.array(pi_dets['r']),
