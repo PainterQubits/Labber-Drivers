@@ -249,7 +249,7 @@ class Driver(InstrumentDriver.InstrumentWorker):
                               + dsp_utils.modulate_signal(self.y_ge.build_sequence(),
                                                  self.dt,
                                                  ge_frequency,
-                                                 -np.pi/2) # sine phase
+                                                 np.pi/2) # sine phase
                 x_ef_signal = dsp_utils.modulate_signal(self.x_ef.build_sequence(),
                                                  self.dt,
                                                  ef_frequency,
@@ -257,7 +257,7 @@ class Driver(InstrumentDriver.InstrumentWorker):
                               + dsp_utils.modulate_signal(self.y_ef.build_sequence(),
                                                  self.dt,
                                                  ef_frequency,
-                                                 -np.pi/2) 
+                                                 np.pi/2) 
                 signal = x_ge_signal + x_ef_signal
                 trace = quant.getTraceDict(signal, t0=0.0, dt=self.dt)
             elif quant.name == 'Waveform - Y Signal':
