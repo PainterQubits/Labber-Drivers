@@ -21,6 +21,7 @@ class Driver(InstrumentDriver.InstrumentWorker):
         'Do Heralding?',
         'Delay After Heralding Pulse',
         'Process Pulse Length',
+        'Percent of Sequence',
     ]
 
     # If any of these values are updated, we will need to update the basis
@@ -50,6 +51,7 @@ class Driver(InstrumentDriver.InstrumentWorker):
         'Process Pulse Derivative Amplitude',
         'Process Pulse Z Bias',
         'Custom Process?',
+        'Percent of Sequence',
     ]
 
     # If any of these values are updated, we will need to update the state
@@ -58,6 +60,7 @@ class Driver(InstrumentDriver.InstrumentWorker):
         'G-E Frequency',
         'E-F Frequency',
         'Initial State Index',
+        'Percent of Sequence',
     ]
 
     # If any of these values are updated, we will need to update the
@@ -108,12 +111,16 @@ class Driver(InstrumentDriver.InstrumentWorker):
             self.measurement_preparation = np.zeros(0)
             self.readout = np.zeros(0)
 
-        def build_sequence(self):
+        def build_sequence(self, percent_of_sequence):
             """ Stitches together all the separate pulse parts."""
+            main_sequence = np.concatenate((self.state_initialization,
+                                            self.process,
+                                            self.measurement_preparation))
+            num_points_to_keep = int(percent_of_sequence * len(main_sequence))
+            main_sequence = main_sequence[:num_points_to_keep]
+
             sequence = np.concatenate((self.heralding,
-                                       self.state_initialization,
-                                       self.process,
-                                       self.measurement_preparation,
+                                       main_sequence,
                                        self.readout))
             return sequence
 
@@ -198,6 +205,9 @@ class Driver(InstrumentDriver.InstrumentWorker):
                 value = 1
             else:
                 value = np.floor(value)
+        if quant.name == 'Percent of Sequence':
+            if not 0 <= value <= 100:
+                value = 100
         # just return the value
         return value
 
@@ -242,19 +252,20 @@ class Driver(InstrumentDriver.InstrumentWorker):
             if quant.name == 'Waveform - X Signal':
                 ge_frequency = 1e-3*self.getValue('G-E Frequency')
                 ef_frequency = 1e-3*self.getValue('E-F Frequency')
-                x_ge_signal = dsp_utils.modulate_signal(self.x_ge.build_sequence(),
+                percent_of_sequence = self.getValue('Percent of Sequence') / 100
+                x_ge_signal = dsp_utils.modulate_signal(self.x_ge.build_sequence(percent_of_sequence),
                                                  self.dt,
                                                  ge_frequency,
                                                  np.pi/2) \
-                              + dsp_utils.modulate_signal(self.y_ge.build_sequence(),
+                              + dsp_utils.modulate_signal(self.y_ge.build_sequence(percent_of_sequence),
                                                  self.dt,
                                                  ge_frequency,
                                                  np.pi/2) # sine phase
-                x_ef_signal = dsp_utils.modulate_signal(self.x_ef.build_sequence(),
+                x_ef_signal = dsp_utils.modulate_signal(self.x_ef.build_sequence(percent_of_sequence),
                                                  self.dt,
                                                  ef_frequency,
                                                  np.pi/2) \
-                              + dsp_utils.modulate_signal(self.y_ef.build_sequence(),
+                              + dsp_utils.modulate_signal(self.y_ef.build_sequence(percent_of_sequence),
                                                  self.dt,
                                                  ef_frequency,
                                                  np.pi/2) 
@@ -263,36 +274,40 @@ class Driver(InstrumentDriver.InstrumentWorker):
             elif quant.name == 'Waveform - Y Signal':
                 ge_frequency = 1e-3*self.getValue('G-E Frequency')
                 ef_frequency = 1e-3*self.getValue('E-F Frequency')
-                y_ge_signal = dsp_utils.modulate_signal(self.y_ge.build_sequence(),
+                percent_of_sequence = self.getValue('Percent of Sequence') / 100
+                y_ge_signal = dsp_utils.modulate_signal(self.y_ge.build_sequence(percent_of_sequence),
                                                  self.dt,
                                                  ge_frequency,
                                                  0) \
-                              + dsp_utils.modulate_signal(self.x_ge.build_sequence(),
+                              + dsp_utils.modulate_signal(self.x_ge.build_sequence(percent_of_sequence),
                                                  self.dt,
                                                  ge_frequency,
                                                  0)
-                y_ef_signal = dsp_utils.modulate_signal(self.y_ef.build_sequence(),
+                y_ef_signal = dsp_utils.modulate_signal(self.y_ef.build_sequence(percent_of_sequence),
                                                  self.dt,
                                                  ef_frequency,
                                                  0) \
-                              + dsp_utils.modulate_signal(self.x_ef.build_sequence(),
+                              + dsp_utils.modulate_signal(self.x_ef.build_sequence(percent_of_sequence),
                                                  self.dt,
                                                  ef_frequency,
                                                  0)
-
                 signal = y_ge_signal + y_ef_signal
                 trace = quant.getTraceDict(signal, t0=0.0, dt=self.dt)
             elif quant.name == 'Waveform - Z Signal':
-                signal = self.z.build_sequence()
+                percent_of_sequence = self.getValue('Percent of Sequence') / 100
+                signal = self.z.build_sequence(percent_of_sequence)
                 trace = quant.getTraceDict(signal, t0=0.0, dt=self.dt)
             elif quant.name == 'Waveform - Readout I':
-                signal = self.readout_i.build_sequence()
+                percent_of_sequence = self.getValue('Percent of Sequence') / 100
+                signal = self.readout_i.build_sequence(percent_of_sequence)
                 trace = quant.getTraceDict(signal, t0=0.0, dt=self.dt)
             elif quant.name == 'Waveform - Readout Q':
-                signal = self.readout_q.build_sequence()
+                percent_of_sequence = self.getValue('Percent of Sequence') / 100
+                signal = self.readout_q.build_sequence(percent_of_sequence)
                 trace = quant.getTraceDict(signal, t0=0.0, dt=self.dt)
             elif quant.name == 'Waveform - Readout Trigger':
-                signal = self.readout_trigger.build_sequence()
+                percent_of_sequence = self.getValue('Percent of Sequence') / 100
+                signal = self.readout_trigger.build_sequence(percent_of_sequence)
                 trace = quant.getTraceDict(signal, t0=0.0, dt=self.dt)
             return trace
 
