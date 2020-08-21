@@ -2,8 +2,7 @@ import numpy as np
 import configparser
 from pathlib import Path 
 
-# n = self.getValue('Number of flux')
-n = 20
+n = 20 #number of qubits
 #create the config parser for reading the .ini file
 file_path = Path('Painter_Z-Crosstalk_Compensation.ini')
 config = configparser.ConfigParser()
