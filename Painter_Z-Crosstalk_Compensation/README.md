@@ -67,3 +67,7 @@ file
 4. Run the python program, a **Tuning_Curves.csv** will be generated
 with **fmax**, **fmin**, **V_0**
 5. Load the .csv file in the **Painter Z-Crosstalk Compensation** driver
+
+
+## filewrite.py
+This file writes to the configuration .ini file. If the desired qubit number is larger than the existing one, the user should run filewrite.py and the .ini file will be automatically updated. If the desired qubit number is smaller than the existing one, the user should delete the old .ini file and run the filewrite.py to get an updated version.
