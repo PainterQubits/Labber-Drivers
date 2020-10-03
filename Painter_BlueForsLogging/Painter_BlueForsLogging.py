@@ -73,6 +73,26 @@ class Driver(LabberDriver):
                 value = 0
                 self.log(str(e))
                 pass
+        elif quant.name in ['Flow']:
+            try:
+                # find latest temperature log file
+                logFolderPath = self.getValue('BlueFors Log Folder')
+                now = datetime.datetime.now()
+                datestr = '%s-%s-%s' % (str(now.year)[-2:],
+                                        str('{:02d}'.format(now.month)),
+                                        str('{:02d}'.format(now.day)))
+                filePath = '%s/%s/Flowmeter %s.log' % (logFolderPath, datestr,
+                                                       datestr)
+                  # read all values from text file
+                with open(filePath, 'rb') as f:
+                    data = f.readlines()
+                    lastline = data[-1].split(b',')
+                    value = float(lastline[2]) * 1e-3 # convert mmol/s to mol/s
+            except Exception as e:
+                # ignore all errors
+                value = 0
+                self.log(str(e))
+                pass
         else:
             value = LabberDriver.performGetValue(self, quant, options)
         return value
