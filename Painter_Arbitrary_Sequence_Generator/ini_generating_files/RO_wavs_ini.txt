@@ -1,0 +1,224 @@
+[Readout Shape]
+label: Shape
+datatype: COMBO
+combo_def_1: Square
+combo_def_2: Read_fast
+def_value: Square
+state_quant: Do Readout?
+state_value_1: 1
+group: Readout
+section: Readout
+
+[Readout Length]
+datatype: DOUBLE
+unit: ns
+def_value: 100
+state_quant: Do Readout?
+state_value_1: 1
+group: Readout
+section: Readout
+
+[Readout Amplitude]
+datatype: DOUBLE
+unit: V
+def_value: 0.6
+state_quant: Do Readout?
+state_value_1: 1
+group: Readout
+section: Readout
+
+[Readout I/Q Ratio]
+datatype: DOUBLE
+def_value: 1
+state_quant: Do Readout?
+state_value_1: 1
+group: Readout
+section: Readout
+tooltip: ratio of IQ voltages to compensate for mixer arm imbalance
+
+[Readout I/Q Phase Skew]
+datatype: DOUBLE
+unit: degrees
+def_value: 0
+state_quant: Do Readout?
+state_value_1: 1
+group: Readout
+section: Readout
+tooltip: compensation for imperfect 90 degree offset phase between I and Q
+
+[Readout I DC Offset]
+datatype: DOUBLE
+unit: V
+def_value: 0
+state_quant: Do Readout?
+state_value_1: 1
+group: Readout
+section: Readout
+tooltip: for LO bleedthrough compensation
+
+[Readout Q DC Offset]
+datatype: DOUBLE
+unit: V
+def_value: 0
+state_quant: Do Readout?
+state_value_1: 1
+group: Readout
+section: Readout
+tooltip: for LO bleedthrough compensation
+
+[Readout Z-Bias]
+label: Z-Bias
+datatype: DOUBLE
+unit: V
+def_value: 0
+state_quant: Do Readout?
+state_value_1: 1
+group: Readout
+section: Readout
+
+[Generate Readout Trig?]
+datatype: BOOLEAN
+def_value: 0
+state_quant: Do Readout?
+state_value_1: 1
+group: Readout
+section: Readout
+
+[Readout Trig Amplitude]
+datatype: DOUBLE
+unit: V
+def_value: 1
+state_quant: Generate Readout Trig?
+state_value_1: 1
+group: Readout
+section: Readout
+
+[Readout Trig Duration]
+datatype: DOUBLE
+unit: ns
+def_value: 50
+state_quant: Generate Readout Trig?
+state_value_1: 1
+group: Readout
+section: Readout
+
+[Do Heralding?]
+datatype: BOOLEAN
+def_value: 0
+state_quant: Do Readout?
+state_value_1: 1
+group: Readout
+section: Readout
+
+[Delay After Heralding Pulse]
+datatype: DOUBLE
+unit: ns
+def_value: 100
+state_quant: Do Heralding?
+state_value_1: 1
+group: Readout
+section: Readout
+
+
+################# WAVEFORM OUTPUTS
+
+[Waveform XY - I]
+datatype: VECTOR
+permission: READ
+x_name: Time
+x_unit: s
+
+[Waveform XY - Q]
+datatype: VECTOR
+permission: READ
+x_name: Time
+x_unit: s
+
+[Waveform Z]
+datatype: VECTOR
+permission: READ
+x_name: Time
+x_unit: s
+
+[Waveform Readout - I]
+datatype: VECTOR
+permission: READ
+x_name: Time
+x_unit: s
+state_quant: Do Readout?
+state_value_1: 1
+
+
+[Waveform Readout - Q]
+datatype: VECTOR
+permission: READ
+x_name: Time
+x_unit: s
+state_quant: Do Readout?
+state_value_1: 1
+
+[Waveform Readout Trig]
+datatype: VECTOR
+permission: READ
+x_name: Time
+x_unit: s
+state_quant: Generate Readout Trig?
+state_value_1: 1
+
+#################Demodulation
+
+[Demodulation - Skip]
+label: Skip start
+datatype: DOUBLE
+def_value: 0.0
+unit: ns
+state_quant: Do Readout?
+state_value: 1
+section: Demodulation
+group: Demodulation
+
+[Demodulation - Number of Samples]
+label: Number of Samples
+datatype: DOUBLE
+def_value: 100
+state_quant: Do Readout?
+state_value: 1
+section: Demodulation
+group: Demodulation
+tooltip: Making this an explicit input so that there is no errors due to rounding of lengths or missed triggers
+
+[Demodulation - Input I]
+unit: V
+x_name: Time
+x_unit: s
+datatype: VECTOR
+permission: WRITE
+state_quant: Do Readout?
+state_value: 1
+section: Demodulation
+group: Demodulation
+show_in_measurement_dlg: True
+
+[Demodulation - Input Q]
+unit: V
+x_name: Time
+x_unit: s
+datatype: VECTOR
+permission: WRITE
+state_quant: Do Readout?
+state_value: 1
+section: Demodulation
+group: Demodulation
+show_in_measurement_dlg: True
+
+[Demodulation - Input Ref]
+unit: V
+x_name: Time
+x_unit: s
+datatype: VECTOR
+permission: WRITE
+state_quant: Do Readout?
+state_value: 1
+section: Demodulation
+group: Demodulation
+show_in_measurement_dlg: True

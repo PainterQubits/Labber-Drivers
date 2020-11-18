@@ -1,0 +1,77 @@
+[Sample Rate]
+datatype: DOUBLE
+def_value: 2.4E9
+unit: Hz
+group: Sequence
+section: Sequence
+
+[Sequence Delay]
+datatype: DOUBLE
+unit: ns
+def_value: 0
+group: Sequence
+section: Sequence
+tooltip: delay before all the waveforms start
+
+[XY I/Q Ratio]
+datatype: DOUBLE
+def_value: 1
+group: Sequence
+section: Sequence
+tooltip: ratio of IQ voltages to compensate for mixer arm imbalance
+
+[XY I/Q Phase Skew]
+datatype: DOUBLE
+unit: degrees
+def_value: 0
+group: Sequence
+section: Sequence
+tooltip: compensation for imperfect 90 degree offset phase between I and Q
+
+[XY I DC Offset]
+datatype: DOUBLE
+unit: V
+def_value: 0
+group: Sequence
+section: Sequence
+tooltip: for LO bleedthrough compensation
+
+[XY Q DC Offset]
+datatype: DOUBLE
+unit: V
+def_value: 0
+group: Sequence
+section: Sequence
+tooltip: for LO bleedthrough compensation
+
+[Do Readout?]
+datatype: BOOLEAN
+def_value: 0
+group: Sequence
+section: Sequence
+show_in_measurement_dlg: False
+
+[Truncation Length]
+datatype: DOUBLE
+unit: ns
+def_value: 0
+group: Sequence
+section: Sequence
+tooltip: length to take out at the end of waveforms
+
+[Z Waveform Delay]
+datatype: DOUBLE
+unit: ns
+def_value: 0
+group: Sequence
+section: Sequence
+tooltip: for when there is a propagation delay between XY pulses and Z pulses
+
+[Make Waveform Multiple of 10ns?]
+datatype: BOOLEAN
+def_value: 0
+group: Sequence
+section: Sequence
+show_in_measurement_dlg: False
+
+################################ PULSES SECTION
