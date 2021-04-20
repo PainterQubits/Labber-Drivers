@@ -53,7 +53,7 @@ class Driver(LabberDriver):
             value = self.lValues[indx]/1000.
             # to mark as used, set value to False
             self.lUpdated[indx] = False
-        elif quant.name in ['CH1', 'CH2', 'CH5', 'CH6', 'CH7']:
+        elif quant.name in ['CH1', 'CH2', 'CH5', 'CH6', 'CH7', 'CH8']:
             try:
                 # find latest temperature log file
                 logFolderPath = self.getValue('BlueFors Log Folder')
