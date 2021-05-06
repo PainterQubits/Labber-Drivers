@@ -385,5 +385,17 @@ class VaunixAttenuator():
         return self.callfuncret('fnLDA_GetDLLVersion')
 
 
+    def getNumberOfChannels(self, devID):
+        return self.callfuncret('fnLDA_GetNumChannels', devID)
+
+    
+    def setChannel(self, devID, channel_number):
+        return self.callfuncret('fnLDA_SetChannel', devID, channel_number)
+
+
+    def getChannel(self, devID):
+        return self.callfuncret('fnLDA_GetChannel', devID)
+
+
 if __name__ == '__main__':
     pass

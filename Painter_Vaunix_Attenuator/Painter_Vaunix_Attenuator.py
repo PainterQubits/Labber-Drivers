@@ -88,6 +88,10 @@ class Driver(InstrumentDriver.InstrumentWorker):
             self.atten.setDwellTimeTwo(None,value)
         elif quant.name == 'Hold time':
             self.atten.setHoldTime(None,value)
+        elif quant.name == 'Channel':
+            num_channels = self.atten.getNumberOfChannels(None)
+            if 0 < value and value <= num_channels:
+                self.atten.setChannel(None, value)
         else:
              # do nothing for these quantities, the value will be stored in local quant
              pass
@@ -134,6 +138,8 @@ class Driver(InstrumentDriver.InstrumentWorker):
             value = (self.atten.Features) & (vx.HAS_BIDIR_RAMPS)
         elif quant.name == 'Supports profile ramps?':
             value = (self.atten.Features) & (vx.HAS_PROFILES)
+        elif quant.name == 'Channel':
+            value = self.atten.getChannel(None)
         else:
             value = quant.getValue()
         return value
