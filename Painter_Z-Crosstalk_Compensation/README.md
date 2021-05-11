@@ -46,7 +46,7 @@ this is to specify which side of the tuning curve we want to operate on
 from the tuning curve and later used in the crosstalk compensation)
 15. Attain the crosstalk characterization data: measure the qubit frequency
 change in the presence of another flux bias line (refer to the
-Crosstalk Characterization Procedures for details) to get dV1
+Crosstalk Characterization Procedures below for details) to get dV1
 dV2 as a
 crosstalk matrix element for qubit 1 under the influence of flux bias 2
 16. Enter the crosstalk matrix element **Mij** as the crosstalk effect for
@@ -55,6 +55,14 @@ qubit i under flux bias j's influence
 Matrix (inverse)** and **Adjusted Voltage** will be updated. The **Adjusted
 Voltage** values are the flux bias voltages we would want to
 apply to the qubits
+
+## Crosstalk Characterization Procedures
+We can measure the qubit's frequency shift as a function of the flux bias as follows
+1. Park qubit A at a frequency where the frequency has a roughly linear relationship to the flux bias when the change in flux bias is small, in this case, we can bias the qubit at $\Phi_A = \Phi_0/4$
+2. Measure $f_A$ using the Ramsey method at three values of $\Phi_A$ about $\Phi_0/4$, and three values of $\Phi_B$  in increments of $\pm\Phi_0$ to obtain slopes of $df_A/d\Phi_B$  and $df_A/d\Phi_A$
+3. Repeat the above procedures for all pairs of flux bias and qubit to obtain the full N x N crosstalk matrix 
+
+* In practice, we use $\frac{dV_A}{dV_B}$ as the crosstalk matrix element
 
 
 ## tuningcurvefitting.py or tuningcurvefitting.ipynb
